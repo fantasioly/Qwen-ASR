@@ -72,7 +72,7 @@ export default function ResultCard({
           )}
           {job.result?.processing_time_ms !== undefined && (
             <span className="text-xs text-gray-400 whitespace-nowrap flex-shrink-0">
-              {new Date(job.result.processing_time_ms).toLocaleTimeString()}
+              {Math.round(job.result.processing_time_ms / 1000)}s
             </span>
           )}
         </div>
