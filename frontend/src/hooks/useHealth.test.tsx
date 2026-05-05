@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { renderHook, act, waitFor } from '@testing-library/react'
+import { renderHook, act } from '@testing-library/react'
 import { useHealth } from '@/hooks/useHealth'
 
 // Mock the API module
@@ -25,7 +25,7 @@ describe('useHealth', () => {
       latency_ms: 50,
     })
 
-    const { result } = renderHook(() => useHealth())
+    renderHook(() => useHealth())
 
     // Initial call
     expect(mockCheckHealth).toHaveBeenCalledTimes(1)

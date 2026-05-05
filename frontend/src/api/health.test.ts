@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { checkHealth } from '@/api/health'
 
 describe('checkHealth', () => {
@@ -12,16 +12,18 @@ describe('checkHealth', () => {
       model: 'Qwen3-ASR-1.7B',
       latency_ms: 123.45,
     }
-    vi.spyOn(global, 'fetch').mockResolvedValueOnce({
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce({
       ok: true,
       json: () => Promise.resolve(mockResponse),
-    } as Response)
+    } as Response))
 
     const result = await checkHealth()
     expect(result).toEqual(mockResponse)
     expect(result.status).toBe('ok')
-    expect(result.model).toBe('Qwen3-ASR-1.7B')
-    expect(result.latency_ms).toBe(123.45)
+    if (result.status === 'ok') {
+      expect(result.model).toBe('Qwen3-ASR-1.7B')
+      expect(result.latency_ms).toBe(123.45)
+    }
   })
 
   it('returns error data from backend on non-200 status', async () => {
@@ -32,11 +34,11 @@ describe('checkHealth', () => {
         code: 504,
       },
     }
-    vi.spyOn(global, 'fetch').mockResolvedValueOnce({
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce({
       ok: false,
       status: 504,
       json: () => Promise.resolve(mockError),
-    } as Response)
+    } as Response))
 
     await expect(checkHealth()).rejects.toThrow(
       'API request timed out after 10s',
@@ -44,9 +46,9 @@ describe('checkHealth', () => {
   })
 
   it('throws structured error on network failure', async () => {
-    vi.spyOn(global, 'fetch').mockRejectedValueOnce(
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValueOnce(
       new Error('Failed to fetch'),
-    )
+    ))
 
     await expect(checkHealth()).rejects.toThrow('Failed to fetch')
   })

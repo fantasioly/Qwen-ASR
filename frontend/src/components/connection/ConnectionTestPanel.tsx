@@ -1,4 +1,4 @@
-import { RefreshCw, Loader2, AlertTriangle } from 'lucide-react'
+import { RefreshCw, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import HealthStatus from './HealthStatus'
 import LatencyChart from './LatencyChart'
