@@ -43,15 +43,6 @@ export function useTranscribeQueue(): UseTranscribeQueueReturn {
     }
   }, [])
 
-  const updateJob = useCallback(
-    (index: number, updates: Partial<TranscribeJob>) => {
-      setJobs((prev) =>
-        prev.map((job, i) => (i === index ? { ...job, ...updates } : job)),
-      )
-    },
-    [],
-  )
-
   /**
    * Add a file to the transcription queue.
    * Validates the file before enqueuing — rejects unsupported formats
@@ -61,7 +52,7 @@ export function useTranscribeQueue(): UseTranscribeQueueReturn {
    * @returns Validation result with reason if rejected
    */
   const enqueue = useCallback(
-    (file: File) => {
+    (file: File): { success: true } | { success: false; reason: string } => {
       const validation = validateFile(file)
       if (!validation.valid) {
         return { success: false, reason: validation.reason }

@@ -48,7 +48,7 @@ describe('useTranscribeQueue', () => {
     it('rejects unsupported format with reason', () => {
       const { result } = renderHook(() => useTranscribeQueue())
 
-      let enqueueResult: ReturnType<typeof result.current.enqueue>
+      let enqueueResult: { success: boolean; reason?: string } | undefined
       act(() => {
         enqueueResult = result.current.enqueue(
           createMockFile('readme.txt', 1024, 'text/plain'),
@@ -56,7 +56,7 @@ describe('useTranscribeQueue', () => {
       })
 
       expect(enqueueResult?.success).toBe(false)
-      if (!enqueueResult!.success) {
+      if (enqueueResult && !enqueueResult.success) {
         expect(enqueueResult.reason).toContain('Unsupported format')
       }
       expect(result.current.jobs).toHaveLength(0)
@@ -65,7 +65,7 @@ describe('useTranscribeQueue', () => {
     it('rejects oversized files with reason', () => {
       const { result } = renderHook(() => useTranscribeQueue())
 
-      let enqueueResult: ReturnType<typeof result.current.enqueue>
+      let enqueueResult: { success: boolean; reason?: string } | undefined
       act(() => {
         enqueueResult = result.current.enqueue(
           createMockFile('huge.wav', 100 * 1024 * 1024),
@@ -73,7 +73,7 @@ describe('useTranscribeQueue', () => {
       })
 
       expect(enqueueResult?.success).toBe(false)
-      if (!enqueueResult!.success) {
+      if (enqueueResult && !enqueueResult.success) {
         expect(enqueueResult.reason).toContain('too large')
       }
       expect(result.current.jobs).toHaveLength(0)
