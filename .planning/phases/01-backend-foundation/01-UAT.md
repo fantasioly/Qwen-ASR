@@ -1,18 +1,14 @@
 ---
-status: testing
+status: complete
 phase: 01-backend-foundation
 source: [01-01-SUMMARY.md, 01-02-SUMMARY.md]
 started: "2026-05-05T00:00:00Z"
-updated: "2026-05-05T00:00:00Z"
+updated: "2026-05-05T02:56:00Z"
 ---
 
 ## Current Test
 
-number: 4
-name: Transcription Endpoint (POST)
-expected: |
-  POST /api/transcribe with an audio file returns transcription text, language, token usage (prompt_tokens, completion_tokens), and processing_time_ms.
-awaiting: user response
+[testing complete]
 
 ## Tests
 
@@ -35,18 +31,19 @@ note: Model name was hardcoded; fixed by making MODEL_NAME configurable in AppSe
 
 ### 5. CORS Middleware
 expected: Response includes Access-Control-Allow-Origin header matching configured frontend origin (http://localhost:5173).
-result: [pending]
+result: pass
+note: access-control-allow-origin: http://localhost:5173 confirmed with Origin header
 
 ### 6. Structured Error Responses
 expected: Error cases return JSON in {error, message, code} format. Timeout returns 504, connection failure returns 503.
-result: [pending]
+result: pass
 
 ## Summary
 
 total: 6
-passed: 3
+passed: 6
 issues: 0
-pending: 3
+pending: 0
 skipped: 0
 
 ## Gaps
