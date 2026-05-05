@@ -4,6 +4,7 @@ import TabBar from '@/components/layout/TabBar'
 import SettingsPanel from '@/components/settings/SettingsPanel'
 import ConnectionTestPanel from '@/components/connection/ConnectionTestPanel'
 import FileUploadPanel from '@/components/fileupload/FileUploadPanel'
+import RealTimePanel from '@/components/realtime/RealTimePanel'
 import { type TabId, TABS } from '@/types/tab'
 
 function TabPlaceholder({ tab }: { tab: { label: string } }) {
@@ -44,6 +45,8 @@ function App() {
             <ConnectionTestPanel key="connection" />
           ) : activeTab === 'fileupload' ? (
             <FileUploadPanel key="fileupload" />
+          ) : activeTab === 'realtime' ? (
+            <RealTimePanel key="realtime" />
           ) : activeTab === 'settings' ? (
             <SettingsPanel key="settings" />
           ) : (
