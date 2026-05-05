@@ -8,7 +8,7 @@
 | # | Phase | Goal | Requirements | Success Criteria |
 |---|-------|------|--------------|------------------|
 | 1 | Backend Foundation | FastAPI server with vLLM proxy, health endpoint, API config | CONN-01, UI-02 | ✓ |
-| 2 | Frontend + Connection Test | React UI with dashboard, connection test panel, settings | CONN-01 to CONN-04, UI-01 to UI-04 | 5 |
+| 2 | Frontend + Connection Test | React UI with dashboard, connection test panel, settings | CONN-01 to CONN-04, UI-01 to UI-04 | 2/2 |
 | 3 | File Upload Transcription | Upload audio files and get transcription results | FILE-01 to FILE-05 | 5 |
 | 4 | Real-Time Streaming | Microphone audio capture with WebSocket streaming | RT-01 to RT-06 | 6 |
 | 5 | Cache & Polish | Prompt caching visualization, error handling, production readiness | CACHE-01 to CACHE-03 | 3 |
@@ -46,6 +46,8 @@
 
 **Requirements:** CONN-01 to CONN-04, UI-01 to UI-04
 
+**Plans:** 2 plans
+
 **Success Criteria:**
 1. User opens the app and sees a clean dashboard with feature sections
 2. Connection test panel shows live status (green/red) with model info
@@ -55,6 +57,10 @@
 6. Error messages display actionable guidance (e.g., "Check API URL and network")
 
 **UI hint:** yes
+
+**Plan list:**
+- [ ] 02-01-PLAN.md — Frontend scaffold + tab layout + settings panel
+- [ ] 02-02-PLAN.md — Connection test panel + health status + latency display
 
 ---
 
