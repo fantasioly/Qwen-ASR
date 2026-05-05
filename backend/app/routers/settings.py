@@ -14,6 +14,7 @@ async def get_settings():
         "port": settings.port,
         "cors_origins": settings.cors_origins,
         "request_timeout": settings.request_timeout,
+        "model_name": settings.model_name,
     }
 
 

@@ -21,7 +21,7 @@ async def transcribe(file: UploadFile = File(...)):
         audio_base64 = base64.b64encode(audio_content).decode("utf-8")
 
         response = client.chat.completions.create(
-            model="Qwen/Qwen3-ASR-1.7B",
+            model=settings.model_name,
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {

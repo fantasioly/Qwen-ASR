@@ -7,6 +7,7 @@ class AppSettings(BaseSettings):
     port: int = 8000
     cors_origins: str = "http://localhost:5173"
     request_timeout: int = 30
+    model_name: str = "/bmcp_lvm_fs/cusa/models/Qwen3-ASR-1.7B"
 
     model_config = SettingsConfigDict(
         env_file=".env",
