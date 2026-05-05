@@ -1,9 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { StreamingClient, type StreamingState } from '@/api/streaming'
+import { StreamingClient, setWebSocketFactory, type StreamingState } from '@/api/streaming'
+
+// READY_STATE constants (from WebSocket spec, not available in jsdom)
+const CONNECTING = 0
+const OPEN = 1
+const CLOSING = 2
+const CLOSED = 3
 
 /**
- * Helper: create a mock WebSocket class for testing.
- * Returns the mock instance so tests can control connection lifecycle.
+ * Helper: create a mock WebSocket instance and factory for testing.
  */
 function createMockWebSocket(): {
   instance: WebSocket
@@ -40,7 +45,7 @@ function createMockWebSocket(): {
 
   const instance = {
     url: '',
-    readyState: WebSocket.CONNECTING,
+    readyState: CONNECTING,
     onopen: null as ((ev: Event) => void) | null,
     onmessage: null as ((ev: MessageEvent) => void) | null,
     onclose: null as ((ev: CloseEvent) => void) | null,
@@ -53,6 +58,7 @@ function createMockWebSocket(): {
 }
 
 describe('StreamingClient', () => {
+  let mockWsFactory: ReturnType<typeof vi.fn>
   let mockWs: ReturnType<typeof createMockWebSocket>
   let stateChanges: StreamingState[]
   let partialTexts: string[]
@@ -67,12 +73,14 @@ describe('StreamingClient', () => {
     errors = []
 
     mockWs = createMockWebSocket()
+    mockWsFactory = vi.fn().mockReturnValue(mockWs.instance)
 
-    vi.stubGlobal('WebSocket', vi.fn().mockReturnValue(mockWs.instance))
+    // Inject the mock WebSocket factory
+    setWebSocketFactory(mockWsFactory as unknown as (url: string) => WebSocket)
   })
 
   afterEach(() => {
-    vi.unstubAllGlobals()
+    setWebSocketFactory(null)
     vi.useRealTimers()
   })
 
@@ -89,7 +97,7 @@ describe('StreamingClient', () => {
     const client = createClient()
     client.connect()
 
-    expect(WebSocket).toHaveBeenCalledWith('/ws/transcribe')
+    expect(mockWsFactory).toHaveBeenCalledWith('/ws/transcribe')
     expect(stateChanges).toContain('connecting')
   })
 
@@ -149,21 +157,18 @@ describe('StreamingClient', () => {
   })
 
   it('reconnects on unexpected disconnect with exponential backoff', async () => {
-    const WebSocketMock = vi.fn() as unknown as typeof WebSocket
-    let callCount = 0
     const instances: ReturnType<typeof createMockWebSocket>[] = []
 
     for (let i = 0; i < 5; i++) {
-      const instance = createMockWebSocket()
-      instances.push(instance)
+      instances.push(createMockWebSocket())
     }
 
-    WebSocketMock.mockImplementation(() => {
-      const inst = instances[callCount++]
-      return inst.instance
+    let callIdx = 0
+    const factory = vi.fn().mockImplementation(() => {
+      return instances[callIdx++].instance
     })
 
-    vi.stubGlobal('WebSocket', WebSocketMock)
+    setWebSocketFactory(factory as unknown as (url: string) => WebSocket)
 
     const client = createClient()
     client.connect()
@@ -171,51 +176,87 @@ describe('StreamingClient', () => {
     // First connection opens
     instances[0].mock.triggerOnopen()
     expect(stateChanges).toContain('connected')
-    expect(stateChanges).not.toContain('reconnecting')
 
-    // Simulate unexpected disconnect
+    // Simulate unexpected disconnect → schedule reconnect at 1s
     instances[0].mock.triggerOnclose(1006)
     expect(stateChanges).toContain('reconnecting')
 
     // Wait 1s for first reconnect attempt
     vi.advanceTimersByTime(1000)
-    expect(WebSocketMock).toHaveBeenCalledTimes(2)
+    expect(factory).toHaveBeenCalledTimes(2)
 
-    // Second connection opens
+    // Second connection opens → counter resets to 0
     instances[1].mock.triggerOnopen()
     expect(stateChanges.filter((s) => s === 'connected').length).toBe(2)
 
-    // Disconnect again
+    // Disconnect again → schedule reconnect at 1s (counter was reset)
     instances[1].mock.triggerOnclose(1006)
 
-    // Wait 2s for second reconnect attempt
-    vi.advanceTimersByTime(2000)
-    expect(WebSocketMock).toHaveBeenCalledTimes(3)
+    // Wait 1s for next reconnect attempt
+    vi.advanceTimersByTime(1000)
+    expect(factory).toHaveBeenCalledTimes(3)
 
-    // Third connection opens
+    // Third connection opens → counter resets
     instances[2].mock.triggerOnopen()
 
-    // Disconnect again
+    // Disconnect again → schedule reconnect at 1s
     instances[2].mock.triggerOnclose(1006)
 
-    // Wait 4s for third reconnect attempt
-    vi.advanceTimersByTime(4000)
-    expect(WebSocketMock).toHaveBeenCalledTimes(4)
+    // Wait 1s for next reconnect attempt
+    vi.advanceTimersByTime(1000)
+    expect(factory).toHaveBeenCalledTimes(4)
 
-    // Fourth connection opens
+    // Fourth connection opens → counter resets
     instances[3].mock.triggerOnopen()
+  })
 
-    // Disconnect again
+  it('exhausts reconnection attempts when server stays down', () => {
+    const instances: ReturnType<typeof createMockWebSocket>[] = []
+
+    for (let i = 0; i < 5; i++) {
+      instances.push(createMockWebSocket())
+    }
+
+    let callIdx = 0
+    const factory = vi.fn().mockImplementation(() => {
+      return instances[callIdx++].instance
+    })
+
+    setWebSocketFactory(factory as unknown as (url: string) => WebSocket)
+
+    const client = createClient()
+    client.connect()
+
+    // First connection opens
+    instances[0].mock.triggerOnopen()
+    expect(stateChanges).toContain('connected')
+
+    // Disconnect → reconnect attempt 1 at 1s
+    instances[0].mock.triggerOnclose(1006)
+    vi.advanceTimersByTime(1000)
+    expect(factory).toHaveBeenCalledTimes(2)
+
+    // Connection 2 → closes immediately (server down)
+    instances[1].mock.triggerOnclose(1006)
+
+    // reconnect attempt 2 at 2s
+    vi.advanceTimersByTime(2000)
+    expect(factory).toHaveBeenCalledTimes(3)
+
+    // Connection 3 → closes immediately
+    instances[2].mock.triggerOnclose(1006)
+
+    // reconnect attempt 3 at 4s
+    vi.advanceTimersByTime(4000)
+    expect(factory).toHaveBeenCalledTimes(4)
+
+    // Connection 4 → closes immediately
     instances[3].mock.triggerOnclose(1006)
 
-    // Wait for backoff - should NOT reconnect (max 3 attempts exceeded)
+    // No more attempts (max 3 reached)
     vi.advanceTimersByTime(8000)
-    expect(WebSocketMock).toHaveBeenCalledTimes(4)
-
-    // State should be disconnected after all attempts exhausted
+    expect(factory).toHaveBeenCalledTimes(4)
     expect(stateChanges).toContain('disconnected')
-
-    vi.unstubAllGlobals()
   })
 
   it('emits partial text on partial frame', () => {
@@ -262,20 +303,17 @@ describe('StreamingClient', () => {
   })
 
   it('stops reconnecting when disconnect is called', () => {
-    const WebSocketMock = vi.fn() as unknown as typeof WebSocket
-    let callCount = 0
     const instances: ReturnType<typeof createMockWebSocket>[] = []
 
     for (let i = 0; i < 3; i++) {
-      const instance = createMockWebSocket()
-      instances.push(instance)
+      instances.push(createMockWebSocket())
     }
 
-    WebSocketMock.mockImplementation(() => {
-      return instances[callCount++].instance
+    let callIdx = 0
+    const factory = vi.fn().mockImplementation(() => {
+      return instances[callIdx++].instance
     })
-
-    vi.stubGlobal('WebSocket', WebSocketMock)
+    setWebSocketFactory(factory as unknown as (url: string) => WebSocket)
 
     const client = createClient()
     client.connect()
@@ -292,27 +330,22 @@ describe('StreamingClient', () => {
     vi.advanceTimersByTime(2000)
 
     // Should NOT have created a new WebSocket
-    expect(WebSocketMock).toHaveBeenCalledTimes(1)
+    expect(factory).toHaveBeenCalledTimes(1)
     expect(stateChanges).toContain('disconnected')
-
-    vi.unstubAllGlobals()
   })
 
   it('resets reconnect counter on successful reconnect', () => {
-    const WebSocketMock = vi.fn() as unknown as typeof WebSocket
-    let callCount = 0
     const instances: ReturnType<typeof createMockWebSocket>[] = []
 
     for (let i = 0; i < 5; i++) {
-      const instance = createMockWebSocket()
-      instances.push(instance)
+      instances.push(createMockWebSocket())
     }
 
-    WebSocketMock.mockImplementation(() => {
-      return instances[callCount++].instance
+    let callIdx = 0
+    const factory = vi.fn().mockImplementation(() => {
+      return instances[callIdx++].instance
     })
-
-    vi.stubGlobal('WebSocket', WebSocketMock)
+    setWebSocketFactory(factory as unknown as (url: string) => WebSocket)
 
     const client = createClient()
     client.connect()
@@ -330,9 +363,7 @@ describe('StreamingClient', () => {
     vi.advanceTimersByTime(1000)
 
     // Should have attempted another reconnect (counter was reset)
-    expect(WebSocketMock).toHaveBeenCalledTimes(3)
-
-    vi.unstubAllGlobals()
+    expect(factory).toHaveBeenCalledTimes(3)
   })
 
   it('getState returns current state', () => {
