@@ -70,7 +70,7 @@
 
 **Requirements:** FILE-01 to FILE-05
 
-**Plans:** 3 plans
+**Plans:** 4 plans
 
 **Success Criteria:**
 1. User can select and upload audio files (WAV, MP3, MP4, M4A, OGG, FLAC, WEBM)
@@ -86,6 +86,7 @@
 - [x] 03-01-PLAN.md — Transcribe types, XHR API client with progress, useTranscribeQueue hook
 - [x] 03-02-PLAN.md — FileUploadZone, TranscribeQueue, ResultCard, FileUploadPanel components
 - [x] 03-03-PLAN.md — Wire FileUploadPanel into App.tsx for fileupload tab
+- [ ] 03-04-PLAN.md — Gap closure: fix stale closure in processQueue + parse language from model output
 
 ---
 
@@ -94,6 +95,8 @@
 **Goal:** Microphone audio capture with WebSocket streaming and incremental transcription display.
 
 **Requirements:** RT-01 to RT-06
+
+**Plans:** 3 plans
 
 **Success Criteria:**
 1. User can click "Start Recording" and see microphone permission prompt
@@ -104,6 +107,11 @@
 6. After stopping recording, final complete transcription is displayed
 
 **UI hint:** yes
+
+**Plan list:**
+- [ ] 04-01-PLAN.md — Backend WS endpoint + vLLM protocol bridge + Vite WS proxy
+- [ ] 04-02-PLAN.md — Frontend WS client + audio capture hook + reconnect logic
+- [ ] 04-03-PLAN.md — RealTimePanel UI + recording controls + streaming text + tab wiring
 
 ---
 
