@@ -10,7 +10,7 @@
 | 1 | Backend Foundation | FastAPI server with vLLM proxy, health endpoint, API config | CONN-01, UI-02 | ✓ |
 | 2 | Frontend + Connection Test | React UI with dashboard, connection test panel, settings | CONN-01 to CONN-04, UI-01 to UI-04 | 2/2 |
 | 3 | File Upload Transcription | Upload audio files and get transcription results | FILE-01 to FILE-05 | 3/3 |
-| 4 | Real-Time Streaming | Microphone audio capture with WebSocket streaming | RT-01 to RT-06 | 6 |
+| 4 | Real-Time Streaming | Microphone audio capture with WebSocket streaming | RT-01 to RT-06 | ✓ |
 | 5 | Cache & Polish | Prompt caching visualization, error handling, production readiness | CACHE-01 to CACHE-03 | 3 |
 
 **Total:** 5 phases | 22 requirements mapped | 100% coverage
@@ -109,9 +109,9 @@
 **UI hint:** yes
 
 **Plan list:**
-- [ ] 04-01-PLAN.md — Backend WS endpoint + vLLM protocol bridge + Vite WS proxy
-- [ ] 04-02-PLAN.md — Frontend WS client + audio capture hook + reconnect logic
-- [ ] 04-03-PLAN.md — RealTimePanel UI + recording controls + streaming text + tab wiring
+- [x] 04-01-PLAN.md — Backend WS endpoint + vLLM protocol bridge + Vite WS proxy
+- [x] 04-02-PLAN.md — Frontend WS client + audio capture hook + reconnect logic
+- [x] 04-03-PLAN.md — RealTimePanel UI + recording controls + streaming text + tab wiring
 
 ---
 
