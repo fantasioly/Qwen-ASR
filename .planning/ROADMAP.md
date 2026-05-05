@@ -23,6 +23,8 @@
 
 **Requirements:** CONN-01, UI-02
 
+**Plans:** 2 plans
+
 **Success Criteria:**
 1. FastAPI server starts and serves on configurable port (default 8000)
 2. GET /api/health returns model info from vLLM `/v1/models` endpoint
@@ -31,6 +33,10 @@
 5. CORS configured to allow frontend origin
 
 **UI hint:** no
+
+**Plan list:**
+- [ ] 01-01-PLAN.md — Project scaffold + config + settings endpoint + error handling
+- [ ] 01-02-PLAN.md — Health endpoint + transcribe endpoint + router wiring
 
 ---
 
