@@ -2,6 +2,7 @@ import { useState } from 'react'
 import AppLayout from '@/components/layout/AppLayout'
 import TabBar from '@/components/layout/TabBar'
 import SettingsPanel from '@/components/settings/SettingsPanel'
+import ConnectionTestPanel from '@/components/connection/ConnectionTestPanel'
 import { type TabId, TABS } from '@/types/tab'
 
 function TabPlaceholder({ tab }: { tab: { label: string } }) {
@@ -38,7 +39,9 @@ function App() {
       <div className="space-y-6">
         <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
         <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-          {activeTab === 'settings' ? (
+          {activeTab === 'connection' ? (
+            <ConnectionTestPanel key="connection" />
+          ) : activeTab === 'settings' ? (
             <SettingsPanel key="settings" />
           ) : (
             <TabPlaceholder key={activeTab} tab={activeTabDef} />
