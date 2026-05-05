@@ -68,6 +68,7 @@ describe('useStreamingTranscribe', () => {
     const mockAnalyser = {
       fftSize: 256,
       frequencyBinCount: 128,
+      connect: vi.fn(),
       getByteFrequencyData: vi.fn((arr: Uint8Array) => {
         arr.fill(128)
       }),
@@ -78,19 +79,19 @@ describe('useStreamingTranscribe', () => {
       disconnect: vi.fn(),
     }
 
-    vi.stubGlobal(
-      'AudioContext',
-      vi.fn().mockImplementation(() => ({
-        sampleRate: 16000,
-        createMediaStreamSource: vi.fn().mockReturnValue({
-          connect: vi.fn(),
-        }),
-        createAnalyser: vi.fn().mockReturnValue(mockAnalyser),
-        createScriptProcessor: vi.fn().mockReturnValue(mockScriptProcessor),
-        close: vi.fn(),
-        destination: {},
-      })),
-    )
+    class MockAudioContext {
+      sampleRate = 16000
+      destination = {}
+      constructor() {
+        // Accept optional config but ignore it for testing
+      }
+      createMediaStreamSource = vi.fn(() => ({ connect: vi.fn() }))
+      createAnalyser = vi.fn(() => mockAnalyser)
+      createScriptProcessor = vi.fn(() => mockScriptProcessor)
+      close = vi.fn()
+    }
+
+    vi.stubGlobal('AudioContext', MockAudioContext)
   })
 
   afterEach(() => {
