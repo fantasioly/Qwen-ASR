@@ -59,7 +59,7 @@
 **UI hint:** yes
 
 **Plan list:**
-- [ ] 02-01-PLAN.md — Frontend scaffold + tab layout + settings panel
+- [x] 02-01-PLAN.md — Frontend scaffold + tab layout + settings panel
 - [ ] 02-02-PLAN.md — Connection test panel + health status + latency display
 
 ---
