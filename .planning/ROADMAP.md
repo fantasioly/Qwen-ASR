@@ -9,7 +9,7 @@
 |---|-------|------|--------------|------------------|
 | 1 | Backend Foundation | FastAPI server with vLLM proxy, health endpoint, API config | CONN-01, UI-02 | ✓ |
 | 2 | Frontend + Connection Test | React UI with dashboard, connection test panel, settings | CONN-01 to CONN-04, UI-01 to UI-04 | 2/2 |
-| 3 | File Upload Transcription | Upload audio files and get transcription results | FILE-01 to FILE-05 | 0/3 |
+| 3 | File Upload Transcription | Upload audio files and get transcription results | FILE-01 to FILE-05 | 3/3 |
 | 4 | Real-Time Streaming | Microphone audio capture with WebSocket streaming | RT-01 to RT-06 | 6 |
 | 5 | Cache & Polish | Prompt caching visualization, error handling, production readiness | CACHE-01 to CACHE-03 | 3 |
 
@@ -83,9 +83,9 @@
 **UI hint:** yes
 
 **Plan list:**
-- [ ] 03-01-PLAN.md — Transcribe types, XHR API client with progress, useTranscribeQueue hook
-- [ ] 03-02-PLAN.md — FileUploadZone, TranscribeQueue, ResultCard, FileUploadPanel components
-- [ ] 03-03-PLAN.md — Wire FileUploadPanel into App.tsx for fileupload tab
+- [x] 03-01-PLAN.md — Transcribe types, XHR API client with progress, useTranscribeQueue hook
+- [x] 03-02-PLAN.md — FileUploadZone, TranscribeQueue, ResultCard, FileUploadPanel components
+- [x] 03-03-PLAN.md — Wire FileUploadPanel into App.tsx for fileupload tab
 
 ---
 
