@@ -2,7 +2,7 @@
 
 ## Current Status
 
-**Phase:** 2 (Frontend + Connection Test — PLANNED)
+**Phase:** 2 (Frontend + Connection Test — EXECUTING)
 **Next Phase:** Phase 2 — Frontend + Connection Test
 **Mode:** YOLO (auto-approve)
 
@@ -20,7 +20,7 @@ See: .planning/PROJECT.md (updated 2025-05-05)
 | Phase | Status | Plans | Progress |
 |-------|--------|-------|----------|
 | 1 | ✓ Complete | 2/2 | 100% |
-| 2 | ◆ Planned | 2/2 | 0% |
+| 2 | ◆ Executing | 2/2 | 50% |
 | 3 | ○ Pending | 0/0 | 0% |
 | 4 | ○ Pending | 0/0 | 0% |
 | 5 | ○ Pending | 0/0 | 0% |
@@ -29,13 +29,21 @@ See: .planning/PROJECT.md (updated 2025-05-05)
 
 - Total v1 requirements: 22
 - Mapped to phases: 22
-- Completed: 0
+- Completed: 2 (UI-01, UI-02)
 
 ## Context
 
 - Model: Qwen3-ASR-1.7B deployed on vLLM at http://10.50.193.74:30003
 - Tech stack: React + TypeScript + Vite (frontend), FastAPI (backend)
 - Framework selected: Option 2.1 (Enhanced, modular React+TypeScript + FastAPI)
+- Frontend: Tailwind CSS v4, Vite 8, sonner (toasts), lucide-react (icons)
+- Vite proxy: /api -> http://localhost:8000 during dev
+
+## Decisions
+
+- Tailwind CSS v4 selected (scaffolded by create-vite, uses @import syntax)
+- Path aliases enabled (@/* maps to ./src/*)
+- Optimistic settings update on save
 
 ## Sessions
 
@@ -44,6 +52,7 @@ See: .planning/PROJECT.md (updated 2025-05-05)
 | 2026-05-05 | 1 | Context gathered | `.planning/phases/01-backend-foundation/01-CONTEXT.md` |
 | 2026-05-05 | 1 | Executed (2/2 plans) | N/A |
 | 2026-05-05 | 2 | Plans created (2 plans) | `.planning/phases/02-frontend-connection-test/` |
+| 2026-05-05 | 2 | Executed 02-01 (frontend scaffold + layout + settings) | N/A |
 
 ---
-*Last updated: 2026-05-05 after Phase 2 planning complete*
+*Last updated: 2026-05-05 after Phase 2 plan 02-01 execution complete*

@@ -37,8 +37,8 @@
 
 ### UI/UX
 
-- [ ] **UI-01**: Interface has a clean dashboard layout with distinct sections per feature
-- [ ] **UI-02**: API configuration (base URL, API key) is configurable via settings
+- [x] **UI-01**: Interface has a clean dashboard layout with distinct sections per feature
+- [x] **UI-02**: API configuration (base URL, API key) is configurable via settings
 - [ ] **UI-03**: Error messages are user-friendly with actionable guidance
 - [ ] **UI-04**: Interface is responsive and works on desktop browser
 
@@ -89,8 +89,8 @@
 | CACHE-01 | Phase 5 | Pending |
 | CACHE-02 | Phase 5 | Pending |
 | CACHE-03 | Phase 5 | Pending |
-| UI-01 | Phase 2 | Pending |
-| UI-02 | Phase 1 | Pending |
+| UI-01 | Phase 2 | Complete (02-01) |
+| UI-02 | Phase 1 | Complete (02-01) |
 | UI-03 | Phase 2 | Pending |
 | UI-04 | Phase 2 | Pending |
 
