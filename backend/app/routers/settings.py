@@ -1,6 +1,5 @@
 from fastapi import APIRouter
-from app.config import AppSettings, settings
-from app.errors import structured_error_response
+from app.config import UpdateSettingsRequest, settings
 import os
 
 router = APIRouter()
@@ -19,20 +18,22 @@ async def get_settings():
 
 
 @router.put("/api/settings")
-async def update_settings(new_settings: dict):
+async def update_settings(new_settings: UpdateSettingsRequest):
     env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
     updates = {}
 
-    if "api_base_url" in new_settings:
-        updates["API_BASE_URL"] = new_settings["api_base_url"]
-    if "api_key" in new_settings:
-        updates["API_KEY"] = new_settings["api_key"]
-    if "port" in new_settings:
-        updates["PORT"] = str(new_settings["port"])
-    if "cors_origins" in new_settings:
-        updates["CORS_ORIGINS"] = new_settings["cors_origins"]
-    if "request_timeout" in new_settings:
-        updates["REQUEST_TIMEOUT"] = str(new_settings["request_timeout"])
+    field_map = {
+        "api_base_url": "API_BASE_URL",
+        "api_key": "API_KEY",
+        "port": "PORT",
+        "cors_origins": "CORS_ORIGINS",
+        "request_timeout": "REQUEST_TIMEOUT",
+    }
+
+    for field, env_key in field_map.items():
+        value = getattr(new_settings, field)
+        if value is not None:
+            updates[env_key] = str(value)
 
     if updates:
         if os.path.exists(env_path):
