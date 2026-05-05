@@ -5,6 +5,7 @@ from app.config import settings
 from app.routers import settings as settings_router
 from app.routers import health
 from app.routers import transcribe
+from app.routers import streaming
 
 app = FastAPI(title="Qwen3-ASR Demo Backend", version="1.0.0")
 
@@ -29,6 +30,7 @@ app.add_exception_handler(Exception, format_error_response)
 app.include_router(settings_router.router)
 app.include_router(health.router)
 app.include_router(transcribe.router)
+app.include_router(streaming.router)
 
 
 @app.get("/")
