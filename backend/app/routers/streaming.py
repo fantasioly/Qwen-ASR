@@ -19,10 +19,7 @@ async def connect_vllm():
         .replace("https://", "wss://")
         .replace("/v1", "/v1/realtime")
     )
-    extra_headers = {
-        "Authorization": f"Bearer {settings.api_key}",
-    }
-    vllm_ws = await ws_connect(ws_uri, additional_headers=extra_headers)
+    vllm_ws = await ws_connect(ws_uri, extra_headers={"Authorization": f"Bearer {settings.api_key}"})
     await vllm_ws.send(
         json.dumps({"type": "session.update", "model": settings.model_name})
     )
