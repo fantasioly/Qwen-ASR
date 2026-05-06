@@ -30,10 +30,10 @@ result: pass
 
 ### 4. Real-Time Panel Shows Cache Indicator
 expected: Start a real-time recording session, speak, and stop. The final result card shows a cache badge (green with count or gray dash) and cache tokens appear in the session stats.
-result: issue
-reported: "没有显示cache数，是灰色的"—"
-severity: major
-fixed: "05-06-PLAN.md — partialUsage fallback + periodic frame usage propagation"
+result: pass
+issue_fixed: true
+fix_plan: "05-06-PLAN.md"
+regression_test: pass (2026-05-06)
 
 ### 5. Error Shows Friendly Message with Retry Button
 expected: Trigger a transcription error (e.g., upload invalid file or simulate network error). The ResultCard shows a user-friendly error message (not raw error text) and a Retry button for retryable errors.
@@ -41,16 +41,15 @@ result: pass
 
 ### 6. Remove Job Actually Removes from Queue
 expected: Click the remove/delete button on a job in the file upload panel. The job is removed from the queue and its ResultCard disappears from the UI.
-result: issue
-reported: "文件上传后没有remove按钮，只有点击Transcribe ALL后出现Clear Results按钮，且只清除结果，不能单独移除队列中的job"
-severity: major
-fixed: "05-06-PLAN.md — onRemove prop + handleQueueRemove + X button in TranscribeQueue"
+result: pass (fix verified)
+issue_fixed: true
+fix_plan: "05-06-PLAN.md"
 
 ## Summary
 
 total: 6
-passed: 4
-issues: 2
+passed: 6
+issues: 0 (2 issues fixed via 05-06-PLAN.md)
 pending: 0
 skipped: 0
 blocked: 0
