@@ -24,7 +24,7 @@ export interface StreamingFrame {
 export interface StreamingResponse {
   type: 'connected' | 'partial' | 'final' | 'error'
   text?: string
-  usage?: { prompt_tokens: number; completion_tokens: number }
+  usage?: { prompt_tokens: number; completion_tokens: number; cache_read_tokens: number }
   message?: string
   code?: number
 }
@@ -78,7 +78,7 @@ export class StreamingClient {
     private onPartial: (text: string) => void,
     private onFinal: (
       text: string,
-      usage?: { prompt_tokens: number; completion_tokens: number },
+      usage?: { prompt_tokens: number; completion_tokens: number; cache_read_tokens: number },
     ) => void,
     private onError: (message: string) => void,
   ) {}
