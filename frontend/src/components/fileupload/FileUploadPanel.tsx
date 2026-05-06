@@ -111,6 +111,15 @@ export default function FileUploadPanel() {
 
   const hasQueuedOrProcessing = activeJobs.length > 0
 
+  const handleQueueRemove = useCallback(
+    (activeIndex: number) => {
+      const job = activeJobs[activeIndex]
+      const fullIndex = jobs.indexOf(job)
+      if (fullIndex !== -1) removeJob(fullIndex)
+    },
+    [activeJobs, jobs, removeJob],
+  )
+
   return (
     <div className="space-y-6">
       {/* Upload zone */}
@@ -149,7 +158,7 @@ export default function FileUploadPanel() {
             Queue
           </h3>
           <div className="bg-gray-50 rounded-lg p-3">
-            <TranscribeQueue jobs={activeJobs} isProcessing={isProcessing} />
+            <TranscribeQueue jobs={activeJobs} isProcessing={isProcessing} onRemove={handleQueueRemove} />
           </div>
         </section>
       )}

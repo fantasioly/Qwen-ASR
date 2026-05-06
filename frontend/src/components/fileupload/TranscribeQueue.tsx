@@ -1,9 +1,10 @@
-import { Loader2 } from 'lucide-react'
+import { Loader2, X } from 'lucide-react'
 import { type TranscribeJob } from '@/types/transcribe'
 
 interface TranscribeQueueProps {
   jobs: TranscribeJob[]
   isProcessing: boolean
+  onRemove?: (index: number) => void
 }
 
 const STATUS_LABELS = {
@@ -15,6 +16,7 @@ const STATUS_LABELS = {
 
 export default function TranscribeQueue({
   jobs,
+  onRemove,
 }: TranscribeQueueProps) {
   if (jobs.length === 0) {
     return <p className="text-sm text-gray-400 text-center py-4">No files in queue</p>
@@ -77,6 +79,16 @@ export default function TranscribeQueue({
                 </span>
               )}
             </div>
+            {onRemove && job.status === 'queued' && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onRemove(index); }}
+                className="p-1 text-gray-300 hover:text-red-500 transition-colors flex-shrink-0"
+                title="Remove from queue"
+                aria-label={`Remove ${job.file.name} from queue`}
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         )
       })}
