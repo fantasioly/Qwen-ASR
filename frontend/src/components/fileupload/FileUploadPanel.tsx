@@ -1,9 +1,11 @@
-import { useCallback } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import FileUploadZone from './FileUploadZone'
 import TranscribeQueue from './TranscribeQueue'
 import ResultCard from './ResultCard'
 import { useTranscribeQueue } from '@/hooks/useTranscribeQueue'
+import { uploadAudio } from '@/api/transcribe'
+import type { TranscribeJob } from '@/types/transcribe'
 
 /**
  * Main panel for the File Upload tab.
@@ -17,6 +19,7 @@ import { useTranscribeQueue } from '@/hooks/useTranscribeQueue'
 export default function FileUploadPanel() {
   const {
     jobs,
+    setJobs,
     isProcessing,
     enqueue,
     removeJob,
@@ -37,6 +40,45 @@ export default function FileUploadPanel() {
       }
     },
     [jobs, enqueue],
+  )
+
+  const jobsRef = useRef(jobs)
+  jobsRef.current = jobs
+
+  const [comparingIndex, setComparingIndex] = useState<number | null>(null)
+
+  const handleCompare = useCallback(
+    async (jobIndex: number) => {
+      const job = jobsRef.current[jobIndex]
+      if (!job || job.status !== 'complete') return
+      setComparingIndex(jobIndex)
+
+      try {
+        // Upload the same file again for cached result
+        const result = await new Promise<NonNullable<TranscribeJob['result']>>(
+          (resolve, reject) => {
+            const { promise } = uploadAudio(job.file, undefined, undefined)
+            promise.then(resolve).catch(reject)
+          },
+        )
+
+        // Store comparison result on the job
+        setJobs((prev) =>
+          prev.map((j, i) =>
+            i === jobIndex ? { ...j, comparison: result, isComparing: false } : j,
+          ),
+        )
+        jobsRef.current = jobsRef.current.map((j, i) =>
+          i === jobIndex ? { ...j, comparison: result, isComparing: false } : j,
+        )
+        toast.success('Comparison complete')
+      } catch {
+        toast.error('Comparison failed')
+      } finally {
+        setComparingIndex(null)
+      }
+    },
+    [],
   )
 
   const handleFiles = useCallback(
@@ -129,6 +171,16 @@ export default function FileUploadPanel() {
                   index={originalIndex}
                   onRemove={() => removeJob(originalIndex)}
                   onRetry={handleRetry}
+                  onCompare={handleCompare}
+                  comparison={
+                    job.comparison
+                      ? {
+                          result: job.comparison,
+                          latencyMs: job.comparison.processing_time_ms,
+                        }
+                      : null
+                  }
+                  isComparing={comparingIndex === originalIndex}
                 />
               )
             })}

@@ -62,6 +62,8 @@ export interface TranscribeJob {
   progress: number // 0-100 percentage
   result?: TranscribeResponse
   error?: TranscribeError
+  comparison?: TranscribeResponse | null // cached re-upload result
+  isComparing?: boolean // compare in progress flag
 }
 
 /**

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react'
+import React, { useState, useCallback, useRef, useEffect } from 'react'
 import {
   type TranscribeJob,
   type TranscribeError,
@@ -7,6 +7,7 @@ import { validateFile, uploadAudio } from '@/api/transcribe'
 
 export interface UseTranscribeQueueReturn {
   jobs: TranscribeJob[]
+  setJobs: React.Dispatch<React.SetStateAction<TranscribeJob[]>>
   isProcessing: boolean
   enqueue: (file: File) => { success: true } | { success: false; reason: string }
   removeJob: (index: number) => void
@@ -126,6 +127,7 @@ export function useTranscribeQueue(): UseTranscribeQueueReturn {
 
   return {
     jobs,
+    setJobs,
     isProcessing,
     enqueue,
     removeJob,
