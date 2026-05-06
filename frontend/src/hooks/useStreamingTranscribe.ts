@@ -16,6 +16,7 @@ export interface UseStreamingTranscribeReturn {
   partialText: string
   finalText: string
   finalUsage: { prompt_tokens: number; completion_tokens: number; cache_read_tokens: number } | null
+  partialUsage: { prompt_tokens: number; completion_tokens: number; cache_read_tokens: number } | null
   detectedLanguage: string
   elapsedSeconds: number
   audioLevel: number
@@ -64,6 +65,7 @@ export function useStreamingTranscribe(): UseStreamingTranscribeReturn {
   const [partialText, setPartialText] = useState('')
   const [finalText, setFinalText] = useState('')
   const [finalUsage, setFinalUsage] = useState<{ prompt_tokens: number; completion_tokens: number; cache_read_tokens: number } | null>(null)
+  const [partialUsage, setPartialUsage] = useState<{ prompt_tokens: number; completion_tokens: number; cache_read_tokens: number } | null>(null)
   const [detectedLanguage, setDetectedLanguage] = useState('unknown')
   const [error, setError] = useState<string | null>(null)
 
@@ -80,7 +82,7 @@ export function useStreamingTranscribe(): UseStreamingTranscribeReturn {
       // onStateChange
       (state) => setWsState(state),
       // onPartial
-      (text) => setPartialText(text),
+      (text, usage) => { setPartialText(text); setPartialUsage(usage ?? null); },
       // onFinal
       (text, usage) => {
         setFinalText(text)
@@ -111,6 +113,7 @@ export function useStreamingTranscribe(): UseStreamingTranscribeReturn {
     setPartialText('')
     setFinalText('')
     setFinalUsage(null)
+    setPartialUsage(null)
     setDetectedLanguage('unknown')
     setElapsedSeconds(0)
     setError(null)
@@ -238,6 +241,7 @@ export function useStreamingTranscribe(): UseStreamingTranscribeReturn {
     partialText,
     finalText,
     finalUsage,
+    partialUsage,
     detectedLanguage,
     elapsedSeconds,
     audioLevel,

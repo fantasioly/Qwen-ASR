@@ -147,15 +147,12 @@ async def periodic_transcription(
                 current_task_ref[0] = task
 
                 try:
-                    clean_text, lang, _ = await task
+                    clean_text, lang, usage = await task
                     if clean_text:
-                        await ws.send_json(
-                            {
-                                "type": "partial",
-                                "text": clean_text,
-                                "language": lang,
-                            }
-                        )
+                        payload = {"type": "partial", "text": clean_text, "language": lang}
+                        if usage:
+                            payload["usage"] = usage
+                        await ws.send_json(payload)
                     else:
                         await ws.send_json(
                             {

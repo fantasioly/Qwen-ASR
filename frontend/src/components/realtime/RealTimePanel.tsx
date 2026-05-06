@@ -13,6 +13,7 @@ export default function RealTimePanel() {
     partialText,
     finalText,
     finalUsage,
+    partialUsage,
     detectedLanguage,
     elapsedSeconds,
     audioLevel,
@@ -20,6 +21,8 @@ export default function RealTimePanel() {
     stopRecording,
     error,
   } = useStreamingTranscribe()
+
+  const displayUsage = finalUsage ?? partialUsage
 
   const handleCopy = useCallback(() => {
     navigator.clipboard.writeText(finalText).then(
@@ -61,15 +64,15 @@ export default function RealTimePanel() {
               <span className="inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700">
                 {detectedLanguage}
               </span>
-              {finalUsage && (
+              {displayUsage && (
                 <span
                   className={`inline-block px-2 py-0.5 text-xs font-medium rounded-full ${
-                    finalUsage.cache_read_tokens > 0
+                    displayUsage.cache_read_tokens > 0
                       ? 'bg-green-100 text-green-700'
                       : 'bg-gray-100 text-gray-400'
                   }`}
                 >
-                  {finalUsage.cache_read_tokens > 0
+                  {displayUsage.cache_read_tokens > 0
                     ? `\u{1F7E2} ${finalUsage.cache_read_tokens} cached`
                     : '\u2014'}
                 </span>
@@ -87,16 +90,16 @@ export default function RealTimePanel() {
           <div className="whitespace-pre-wrap text-sm text-gray-800 leading-relaxed mb-3">
             {finalText}
           </div>
-          {finalUsage && (
+          {displayUsage && (
             <div className="flex gap-4 mt-2 pt-2 border-t border-gray-100">
               <span className="text-xs text-gray-500">
-                Prompt: {finalUsage.prompt_tokens} tokens
+                Prompt: {displayUsage.prompt_tokens} tokens
               </span>
               <span className="text-xs text-gray-500">
-                Completion: {finalUsage.completion_tokens} tokens
+                Completion: {displayUsage.completion_tokens} tokens
               </span>
               <span className="text-xs text-gray-500">
-                Cached: {finalUsage.cache_read_tokens} tokens
+                Cached: {displayUsage.cache_read_tokens} tokens
               </span>
             </div>
           )}

@@ -75,7 +75,7 @@ export class StreamingClient {
 
   constructor(
     private onStateChange: (state: StreamingState) => void,
-    private onPartial: (text: string) => void,
+    private onPartial: (text: string, usage?: StreamingResponse['usage']) => void,
     private onFinal: (
       text: string,
       usage?: { prompt_tokens: number; completion_tokens: number; cache_read_tokens: number },
@@ -201,7 +201,7 @@ export class StreamingClient {
         // Server confirms connection
         break
       case 'partial':
-        this.onPartial(frame.text ?? '')
+        this.onPartial(frame.text ?? '', frame.usage)
         break
       case 'final':
         this.onFinal(frame.text ?? '', frame.usage)
