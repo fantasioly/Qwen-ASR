@@ -26,6 +26,7 @@ export const MAX_FILE_SIZE_BYTES: number = 50 * 1024 * 1024 // 52_428_800
 export interface TranscribeUsage {
   prompt_tokens: number
   completion_tokens: number
+  cache_read_tokens: number // from response.usage.prompt_tokens_details.cache_read_tokens
 }
 
 /**
@@ -36,6 +37,7 @@ export interface TranscribeResponse {
   text: string
   language: string
   usage: TranscribeUsage | null
+  cache_read_tokens: number // convenience field; > 0 means cache hit
   processing_time_ms: number
 }
 
