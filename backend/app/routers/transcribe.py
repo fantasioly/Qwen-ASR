@@ -107,6 +107,13 @@ async def transcribe(file: UploadFile = File(...)):
         raw_output = response.choices[0].message.content
         result_text, detected_language = parse_model_output(raw_output)
 
+        # Extract usage data including cache_read_tokens from prefix caching
+        cache_read_tokens = 0
+        if response.usage and hasattr(response.usage, "prompt_tokens_details"):
+            details = response.usage.prompt_tokens_details
+            if details is not None and hasattr(details, "cache_read_tokens"):
+                cache_read_tokens = details.cache_read_tokens or 0
+
         return JSONResponse(
             content={
                 "text": result_text,
@@ -118,7 +125,9 @@ async def transcribe(file: UploadFile = File(...)):
                     "completion_tokens": (
                         response.usage.completion_tokens if response.usage else 0
                     ),
+                    "cache_read_tokens": cache_read_tokens,
                 },
+                "cache_read_tokens": cache_read_tokens,
                 "processing_time_ms": round(processing_time_ms, 2),
             }
         )
