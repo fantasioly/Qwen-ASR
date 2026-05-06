@@ -2,7 +2,7 @@
 
 ## Current Status
 
-**Phase:** 4 (Real-Time Streaming — Complete)
+**Phase:** 4 (Real-Time Streaming — Gap closure plan 04-05 pending)
 **Next Phase:** Phase 5 — Cache & Polish
 **Mode:** YOLO (auto-approve)
 

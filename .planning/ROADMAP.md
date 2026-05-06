@@ -96,7 +96,7 @@
 
 **Requirements:** RT-01 to RT-06
 
-**Plans:** 4 plans
+**Plans:** 5 plans
 
 **Success Criteria:**
 1. User can click "Start Recording" and see microphone permission prompt
@@ -113,6 +113,7 @@
 - [x] 04-02-PLAN.md — Frontend WS client + audio capture hook + reconnect logic
 - [x] 04-03-PLAN.md — RealTimePanel UI + recording controls + streaming text + tab wiring
 - [x] 04-04-PLAN.md — Gap closure: HTTP periodic streaming replacing vLLM WS bridge (403)
+- [ ] 04-05-PLAN.md — Gap closure: Audio meter color fix + streaming text duplication fix
 
 ---
 
