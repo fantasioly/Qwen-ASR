@@ -57,7 +57,7 @@ Copy `backend/.env.example` to `backend/.env` and configure:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `API_BASE_URL` | `http://10.50.193.74:30003/v1` | vLLM API endpoint |
+| `API_BASE_URL` | `http://<your-vllm-host>:<port>/v1` | vLLM API endpoint |
 | `API_KEY` | `test` | API key for authentication |
 | `PORT` | `8000` | Backend server port |
 | `CORS_ORIGINS` | `http://localhost:5173` | Allowed CORS origins (comma-separated) |
