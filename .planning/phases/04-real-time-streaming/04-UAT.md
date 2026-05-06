@@ -1,9 +1,9 @@
 ---
-status: complete
+status: resolved
 phase: 04-real-time-streaming
-source: 04-01-SUMMARY.md, 04-02-SUMMARY.md, 04-03-SUMMARY.md
+source: 04-01-SUMMARY.md, 04-02-SUMMARY.md, 04-03-SUMMARY.md, 04-04-SUMMARY.md
 started: "2026-05-05T14:30:00Z"
-updated: "2026-05-06T08:30:00Z"
+updated: "2026-05-06T08:25:00Z"
 ---
 
 ## Current Test
@@ -70,39 +70,43 @@ reason: "Depends on transcription result availability"
 
 total: 8
 passed: 1
-issues: 2
+issues: 2 (resolved in 04-04)
 pending: 0
 skipped: 0
-blocked: 5
+blocked: 5 (unblocked by 04-04, pending re-test)
 
 ## Gaps
 
-- truth: "Real-time streaming WebSocket connects to vLLM and returns incremental transcription"
-  status: failed
-  reason: "Qwen3-ASR model does not support the vLLM 'realtime' WebSocket protocol (only 'transcribe'/'translate'). HTTP /v1/audio/transcriptions works but WebSocket /v1/realtime returns 403 Forbidden."
+- truth: "Real-time streaming returns incremental transcription as user speaks"
+  status: resolved
+  reason: "vLLM WebSocket /v1/realtime endpoint returns 403 — Qwen3-ASR only supports HTTP /v1/audio/transcriptions, not realtime WebSocket protocol"
   severity: blocker
   test: 1
-  root_cause: "The streaming router (backend/app/routers/streaming.py) connects to vLLM's /v1/realtime WebSocket endpoint, but Qwen3-ASR only implements SupportsTranscription, not SupportsRealtime. The HTTP /v1/audio/transcriptions endpoint works (200 OK). Architecture must switch from WebSocket bridge to HTTP streaming: backend receives audio chunks via frontend WebSocket, buffers them, then calls HTTP /v1/audio/transcriptions with audio data, returning results back to frontend."
+  root_cause: "Phase 4 was built around vLLM realtime WebSocket bridge, but Qwen3-ASR model does not implement SupportsRealtime (only SupportsTranscription). All WebSocket /v1/realtime connections are rejected with 403."
+  resolution: "Rewrote streaming.py to HTTP periodic transcription via OpenAI HTTP client. Audio buffered as PCM16, transcribed every 3s, partial/final results sent over WebSocket to frontend."
+  resolved_in: 04-04
   artifacts:
     - path: "backend/app/routers/streaming.py"
-      issue: "WebSocket bridge to vLLM /v1/realtime won't work - need HTTP streaming workaround"
-    - path: "frontend/src/api/streaming.ts"
-      issue: "StreamingClient protocol needs to work with HTTP-based results"
-    - path: "backend/app/routers/streaming.py"
-      issue: "Add HTTP transcription call instead of vLLM WebSocket connection"
+      issue: "Entire file implements WebSocket-to-vLLM-WebSocket bridge that cannot work"
   missing:
-    - "Rewrite streaming.py to use HTTP POST /v1/audio/transcriptions with audio chunks"
-    - "Add audio buffering and periodic transcription in streaming backend"
-    - "Update frontend to handle non-realtime streaming results"
+    - "Rewrite streaming.py: frontend WebSocket → audio buffer → HTTP /v1/audio/transcriptions → WebSocket to frontend"
+    - "Audio chunk assembly: decode base64 chunks, concatenate into PCM16 WAV for HTTP upload"
+    - "Streaming transcription: send audio in segments (e.g., 3-5s), return partial results incrementally"
+    - "Update frontend StreamingClient protocol to handle incremental HTTP-based results"
   debug_session: ""
 
 - truth: "WebSocket connection status shows real connection state"
-  status: failed
-  reason: "WebSocket connects to backend but backend cannot connect to vLLM (403), so shows error immediately"
+  status: resolved
+  reason: "WebSocket connects to backend successfully, but backend cannot forward to vLLM"
   severity: major
   test: 5
-  root_cause: "See gap 1 - underlying WebSocket architecture incompatible with Qwen3-ASR"
-  artifacts: []
-  missing: []
+  root_cause: "Backend WebSocket accepts connections but fails to bridge to vLLM"
+  resolution: "WebSocket now connects without attempting vLLM WS bridge. Connected frame sent immediately after accept."
+  resolved_in: 04-04
+  artifacts:
+    - path: "frontend/src/api/streaming.ts"
+      issue: "StreamingClient reconnects repeatedly due to backend connection failures"
+  missing:
+    - "Update StreamingClient state machine for HTTP-based streaming"
   debug_session: ""
   debug_session: ""
