@@ -113,7 +113,7 @@
 - [x] 04-02-PLAN.md — Frontend WS client + audio capture hook + reconnect logic
 - [x] 04-03-PLAN.md — RealTimePanel UI + recording controls + streaming text + tab wiring
 - [x] 04-04-PLAN.md — Gap closure: HTTP periodic streaming replacing vLLM WS bridge (403)
-- [ ] 04-05-PLAN.md — Gap closure: Audio meter color fix + streaming text duplication fix
+- [x] 04-05-PLAN.md — Gap closure: Audio meter color fix + streaming text duplication fix
 
 ---
 
