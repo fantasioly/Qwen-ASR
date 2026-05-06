@@ -8,8 +8,9 @@ interface AudioMeterProps {
 const SEGMENT_THRESHOLDS = [0.25, 0.5, 0.75] as const
 
 function getSegmentColor(level: number, index: number): string {
-  if (level <= 0.5) return 'bg-emerald-500'
-  if (level <= 0.8) return 'bg-yellow-500'
+  if (index < 3) return 'bg-emerald-500'
+  if (level <= 0.3) return 'bg-emerald-500'
+  if (level <= 0.7) return 'bg-yellow-500'
   return 'bg-red-500'
 }
 
