@@ -58,10 +58,11 @@ def pcm16_to_wav_bytes(pcm_data: bytes) -> bytes:
     return buf.getvalue()
 
 
-async def call_http_transcription(wav_bytes: bytes) -> tuple[str, str] | tuple[None, None]:
+async def call_http_transcription(wav_bytes: bytes) -> tuple[str, str, dict[str, int] | None] | tuple[None, None, None]:
     """Call the vLLM HTTP transcription endpoint.
 
-    Returns (clean_text, language_code) or (None, None) on failure.
+    Returns (clean_text, language_code, usage_dict) or (None, None, None) on failure.
+    usage_dict includes prompt_tokens, completion_tokens, and cache_read_tokens.
     """
     try:
         wav_b64 = base64.b64encode(wav_bytes).decode("utf-8")
@@ -86,15 +87,30 @@ async def call_http_transcription(wav_bytes: bytes) -> tuple[str, str] | tuple[N
 
         raw = response.choices[0].message.content
         if raw is None:
-            return None, None
+            return None, None, None
         clean_text, lang = parse_model_output(raw)
-        return clean_text, lang
+
+        # Extract usage data including cache_read_tokens
+        usage_dict = None
+        if response.usage:
+            cache_read_tokens = 0
+            if hasattr(response.usage, "prompt_tokens_details"):
+                details = response.usage.prompt_tokens_details
+                if details is not None and hasattr(details, "cache_read_tokens"):
+                    cache_read_tokens = details.cache_read_tokens or 0
+            usage_dict = {
+                "prompt_tokens": response.usage.prompt_tokens or 0,
+                "completion_tokens": response.usage.completion_tokens or 0,
+                "cache_read_tokens": cache_read_tokens,
+            }
+
+        return clean_text, lang, usage_dict
     except APITimeoutError:
-        return None, None
+        return None, None, None
     except APIConnectionError:
-        return None, None
+        return None, None, None
     except Exception:
-        return None, None
+        return None, None, None
 
 
 async def periodic_transcription(
@@ -131,7 +147,7 @@ async def periodic_transcription(
                 current_task_ref[0] = task
 
                 try:
-                    clean_text, lang = await task
+                    clean_text, lang, _ = await task
                     if clean_text:
                         await ws.send_json(
                             {
@@ -176,14 +192,17 @@ async def do_final_transcription(
         return None
 
     wav_bytes = pcm16_to_wav_bytes(bytes(buffer))
-    clean_text, lang = await call_http_transcription(wav_bytes)
+    clean_text, lang, usage = await call_http_transcription(wav_bytes)
 
     if clean_text:
-        return {
+        result = {
             "type": "final",
             "text": clean_text,
             "language": lang,
         }
+        if usage:
+            result["usage"] = usage
+        return result
     return None
 
 
