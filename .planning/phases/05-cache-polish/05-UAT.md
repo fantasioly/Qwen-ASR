@@ -1,9 +1,9 @@
 ---
-status: testing
+status: diagnosed
 phase: 05-cache-polish
 source: [05-01-SUMMARY.md, 05-02-SUMMARY.md, 05-03-SUMMARY.md]
 started: '2026-05-06T06:00:00Z'
-updated: '2026-05-06T06:00:00Z'
+updated: '2026-05-06T06:05:00Z'
 ---
 
 ## Current Test
@@ -60,15 +60,28 @@ blocked: 0
   reason: "User reported: 没有显示cache数，是灰色的'——'"
   severity: major
   test: 4
-  root_cause: ""
-  artifacts: []
-  missing: []
+  root_cause: "finalUsage may be null (final transcription failed/timed out, only empty partial text remains) so the stats row with cache token count doesn't render. RealTimePanel.tsx:90-101 guards on finalUsage being truthy. Also periodic transcription (streaming.py:150) discards usage with underscore, so only the final frame carries usage data. If final frame is lost, no stats appear."
+  artifacts:
+    - path: "frontend/src/components/realtime/RealTimePanel.tsx"
+      issue: "Stats row (line 90-101) only renders when finalUsage is truthy — if final transcription fails, no stats shown"
+    - path: "backend/app/routers/streaming.py"
+      issue: "Periodic transcription drops usage (line 150: clean_text, lang, _) — only final frame carries usage"
+  missing:
+    - "Include usage in periodic partial frames so stats are available even if final transcription fails"
+    - "Fallback stats display when finalUsage is null but partial usage exists"
 
 - truth: "Click remove/delete on a job in the file upload panel removes it from queue and hides its ResultCard"
   status: failed
   reason: "User reported: 文件上传后没有remove按钮，只有点击Transcribe ALL后出现Clear Results按钮，且只清除结果，不能单独移除队列中的job"
   severity: major
   test: 6
-  root_cause: ""
-  artifacts: []
-  missing: []
+  root_cause: "TranscribeQueue component (TranscribeQueue.tsx) has no remove button — it only displays filename, progress bar, and status text. The removeJob function from useTranscribeQueue is wired in FileUploadPanel and passed to ResultCard (for completed jobs), but TranscribeQueue receives no onRemove prop to delete queued items."
+  artifacts:
+    - path: "frontend/src/components/fileupload/TranscribeQueue.tsx"
+      issue: "No remove/X button on queued job rows — component only accepts jobs and isProcessing props"
+    - path: "frontend/src/components/fileupload/FileUploadPanel.tsx"
+      issue: "TranscribeQueue rendered at line 152 receives no remove callback — only activeJobs and isProcessing passed"
+  missing:
+    - "Add onRemove prop to TranscribeQueue component"
+    - "Wire removeJob callback from FileUploadPanel to TranscribeQueue"
+    - "Add X/remove button on each queued job row in TranscribeQueue"
