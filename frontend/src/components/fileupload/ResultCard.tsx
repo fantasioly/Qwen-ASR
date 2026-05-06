@@ -1,21 +1,27 @@
 import { useCallback } from 'react'
-import { Clipboard, X, RefreshCw } from 'lucide-react'
+import { Clipboard, X, RefreshCw, Zap, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { type TranscribeJob } from '@/types/transcribe'
+import { type TranscribeJob, type TranscribeResponse } from '@/types/transcribe'
 import { getErrorFriendlyMessage, isRetryableError } from '@/lib/errorMap'
 
 interface ResultCardProps {
   job: TranscribeJob
   onRemove?: (index: number) => void
   onRetry?: (index: number) => void
+  onCompare?: (index: number) => void
   index?: number
+  comparison?: { result: TranscribeResponse; latencyMs: number } | null
+  isComparing?: boolean
 }
 
 export default function ResultCard({
   job,
   onRemove,
   onRetry,
+  onCompare,
   index,
+  comparison,
+  isComparing,
 }: ResultCardProps) {
   const handleCopy = useCallback(() => {
     const text = job.result?.text ?? ''
@@ -86,6 +92,19 @@ export default function ResultCard({
               {job.result.language}
             </span>
           )}
+          {job.result && (
+            <span
+              className={`inline-block px-2 py-0.5 text-xs font-medium rounded-full whitespace-nowrap flex-shrink-0 ${
+                job.result.cache_read_tokens > 0
+                  ? 'bg-green-100 text-green-700'
+                  : 'bg-gray-100 text-gray-400'
+              }`}
+            >
+              {job.result.cache_read_tokens > 0
+                ? `\u{1F7E2} ${job.result.cache_read_tokens} cached`
+                : '\u2014'}
+            </span>
+          )}
           {job.result?.processing_time_ms !== undefined && (
             <span className="text-xs text-gray-400 whitespace-nowrap flex-shrink-0">
               {Math.round(job.result.processing_time_ms / 1000)}s
@@ -126,7 +145,7 @@ export default function ResultCard({
 
       {/* Stats row */}
       {job.result && (
-        <div className="flex gap-4 mt-2 pt-2 border-t border-gray-100">
+        <div className="flex gap-4 items-center mt-2 pt-2 border-t border-gray-100">
           <span className="text-xs text-gray-500">
             Prompt: {job.result.usage?.prompt_tokens ?? 0} tokens
           </span>
@@ -136,6 +155,66 @@ export default function ResultCard({
           <span className="text-xs text-gray-500">
             Time: {(job.result.processing_time_ms ?? 0).toFixed(0)}ms
           </span>
+          {onCompare && index !== undefined && job.status === 'complete' && (
+            <button
+              onClick={() => onCompare(index)}
+              disabled={isComparing}
+              className="text-xs text-gray-500 hover:text-blue-600 flex items-center gap-1 flex-shrink-0 transition-colors ml-auto"
+              title="Compare with prefix cache"
+            >
+              {isComparing ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                <Zap className="w-3 h-3" />
+              )}
+              Compare
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Comparison display */}
+      {comparison && job.result && (
+        <div className="mt-3 pt-3 border-t border-gray-100">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+              Comparison
+            </span>
+            {job.result.processing_time_ms > 0 && (
+              <span
+                className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                  comparison.result.processing_time_ms < job.result.processing_time_ms
+                    ? 'bg-green-100 text-green-700'
+                    : 'bg-gray-100 text-gray-500'
+                }`}
+              >
+                {Math.round(
+                  (1 - comparison.result.processing_time_ms / job.result.processing_time_ms) * 100,
+                )}
+                % faster
+              </span>
+            )}
+          </div>
+          <div className="grid grid-cols-2 gap-3 text-xs">
+            <div>
+              <span className="text-gray-400">Baseline:</span>{' '}
+              <span className="text-gray-700">
+                {Math.round(job.result.processing_time_ms)}ms
+              </span>
+              {job.result.cache_read_tokens === 0 && (
+                <span className="text-gray-400"> (miss)</span>
+              )}
+            </div>
+            <div>
+              <span className="text-gray-400">Cached:</span>{' '}
+              <span className="text-gray-700">
+                {Math.round(comparison.result.processing_time_ms)}ms
+              </span>
+              {comparison.result.cache_read_tokens > 0 && (
+                <span className="text-green-600"> (hit)</span>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>
