@@ -61,6 +61,19 @@ export default function RealTimePanel() {
               <span className="inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700">
                 {detectedLanguage}
               </span>
+              {finalUsage && (
+                <span
+                  className={`inline-block px-2 py-0.5 text-xs font-medium rounded-full ${
+                    finalUsage.cache_read_tokens > 0
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-gray-100 text-gray-400'
+                  }`}
+                >
+                  {finalUsage.cache_read_tokens > 0
+                    ? `\u{1F7E2} ${finalUsage.cache_read_tokens} cached`
+                    : '\u2014'}
+                </span>
+              )}
             </div>
             <button
               onClick={handleCopy}
@@ -81,6 +94,9 @@ export default function RealTimePanel() {
               </span>
               <span className="text-xs text-gray-500">
                 Completion: {finalUsage.completion_tokens} tokens
+              </span>
+              <span className="text-xs text-gray-500">
+                Cached: {finalUsage.cache_read_tokens} tokens
               </span>
             </div>
           )}

@@ -15,7 +15,7 @@ export interface UseStreamingTranscribeReturn {
   wsState: 'disconnected' | 'connecting' | 'connected' | 'reconnecting'
   partialText: string
   finalText: string
-  finalUsage: { prompt_tokens: number; completion_tokens: number } | null
+  finalUsage: { prompt_tokens: number; completion_tokens: number; cache_read_tokens: number } | null
   detectedLanguage: string
   elapsedSeconds: number
   audioLevel: number
@@ -63,7 +63,7 @@ export function useStreamingTranscribe(): UseStreamingTranscribeReturn {
   // Transcription state
   const [partialText, setPartialText] = useState('')
   const [finalText, setFinalText] = useState('')
-  const [finalUsage, setFinalUsage] = useState<{ prompt_tokens: number; completion_tokens: number } | null>(null)
+  const [finalUsage, setFinalUsage] = useState<{ prompt_tokens: number; completion_tokens: number; cache_read_tokens: number } | null>(null)
   const [detectedLanguage, setDetectedLanguage] = useState('unknown')
   const [error, setError] = useState<string | null>(null)
 
