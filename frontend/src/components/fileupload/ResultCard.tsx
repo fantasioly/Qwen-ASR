@@ -1,17 +1,20 @@
 import { useCallback } from 'react'
-import { Clipboard, X } from 'lucide-react'
+import { Clipboard, X, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { type TranscribeJob } from '@/types/transcribe'
+import { getErrorFriendlyMessage, isRetryableError } from '@/lib/errorMap'
 
 interface ResultCardProps {
   job: TranscribeJob
   onRemove?: (index: number) => void
+  onRetry?: (index: number) => void
   index?: number
 }
 
 export default function ResultCard({
   job,
   onRemove,
+  onRetry,
   index,
 }: ResultCardProps) {
   const handleCopy = useCallback(() => {
@@ -33,23 +36,36 @@ export default function ResultCard({
   }, [onRemove, index])
 
   if (job.status === 'failed') {
+    const errorMessage = getErrorFriendlyMessage(
+      job.error ?? { error: 'unknown', message: 'Transcription failed', code: 0 },
+    )
+    const canRetry = job.error ? isRetryableError(job.error) : true
     return (
       <div className="border border-red-200 rounded-lg p-4 bg-red-50">
         <div className="flex items-center justify-between mb-2">
-          <h4 className="text-sm font-medium text-red-800">{job.file.name}</h4>
-          {onRemove && (
-            <button
-              onClick={handleRemove}
-              className="text-red-400 hover:text-red-600 transition-colors"
-              aria-label="Remove result"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          )}
+          <h4 className="text-sm font-medium text-red-800 truncate">{job.file.name}</h4>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            {onRemove && (
+              <button
+                onClick={handleRemove}
+                className="text-red-400 hover:text-red-600 transition-colors"
+                aria-label="Remove result"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
         </div>
-        <p className="text-sm text-red-600">
-          {job.error?.message ?? 'Transcription failed'}
-        </p>
+        <p className="text-sm text-red-600 mb-3">{errorMessage}</p>
+        {canRetry && onRetry && (
+          <button
+            onClick={() => onRetry(index!)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-red-700 bg-red-100 rounded-md hover:bg-red-200 transition-colors"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            Retry
+          </button>
+        )}
       </div>
     )
   }
