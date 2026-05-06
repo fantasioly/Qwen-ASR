@@ -46,6 +46,7 @@ See: .planning/PROJECT.md (updated 2026-05-06)
 | 2026-05-06 | v1.0 | Milestone archived |
 | 2026-05-06 | v1.0 | Milestone summary generated | `.planning/reports/MILESTONE_SUMMARY-v1.0.md`
 | 2026-05-06 | v1.0 | Milestone summary generated | `.planning/reports/MILESTONE_SUMMARY-v1.0.md`
+| 2026-05-06 | v1.0 | Milestone summary generated | `.planning/reports/MILESTONE_SUMMARY-v1.0.md`
 
 ---
 *Last updated: 2026-05-06 after v1.0 milestone*
