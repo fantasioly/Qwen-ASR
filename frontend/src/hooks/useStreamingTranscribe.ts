@@ -80,7 +80,7 @@ export function useStreamingTranscribe(): UseStreamingTranscribeReturn {
       // onStateChange
       (state) => setWsState(state),
       // onPartial
-      (text) => setPartialText((prev) => prev + text),
+      (text) => setPartialText(text),
       // onFinal
       (text, usage) => {
         setFinalText(text)
