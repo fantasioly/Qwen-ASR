@@ -1,143 +1,318 @@
-"""WebSocket streaming router — bridges frontend JSON frames to vLLM Realtime API."""
+"""WebSocket streaming router — HTTP-based periodic transcription.
+
+Bridges frontend JSON frames to vLLM via HTTP /v1/chat/completions.
+Frontend protocol unchanged: send audio chunks as base64, receive partial/final results.
+"""
 
 import asyncio
+import base64
+import io
 import json
 import logging
+import struct
+import time
+from typing import Any
+
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from websockets.legacy.client import connect as ws_connect
+from openai import OpenAI, APIConnectionError, APITimeoutError
+
 from app.config import settings
+from app.routers.transcribe import SYSTEM_PROMPT, parse_model_output
 
 logger = logging.getLogger(__name__)
 
 VALID_TYPES = {"audio", "start", "stop"}
 
+# Buffer cap: 60s of audio at 16kHz mono 16-bit ~= 1.92 MB
+MAX_BUFFER_BYTES = 1920000
+
+# Minimum buffer size for periodic transcription (~2.5s of audio)
+MIN_BUFFER_BYTES = 40000
+
+# Periodic transcription interval in seconds
+PERIODIC_INTERVAL = 3
+
+# HTTP timeout cap for streaming responsiveness
+STREAM_TIMEOUT = 15
+
 router = APIRouter()
 
 
-async def connect_vllm():
-    """Create WebSocket connection to vLLM Realtime API and configure session."""
-    ws_uri = (
-        settings.api_base_url
-        .replace("http://", "ws://")
-        .replace("https://", "wss://")
-        .replace("/v1", "/v1/realtime")
-    )
-    logger.info("Connecting to vLLM WS: %s", ws_uri)
-    vllm_ws = await ws_connect(ws_uri, extra_headers={"Authorization": f"Bearer {settings.api_key}"})
-    logger.info("vLLM WS connected, sending session.update")
-    await vllm_ws.send(
-        json.dumps({"type": "session.update", "model": settings.model_name})
-    )
-    logger.info("session.update sent, waiting for vLLM response")
-    return vllm_ws
+def pcm16_to_wav_bytes(pcm_data: bytes) -> bytes:
+    """Convert raw PCM16 (16kHz, mono) to a WAV file in memory."""
+    buf = io.BytesIO()
+    buf.write(b"RIFF")
+    buf.write(struct.pack("<I", 36 + len(pcm_data)))
+    buf.write(b"WAVE")
+    buf.write(b"fmt ")
+    buf.write(struct.pack("<I", 16))
+    buf.write(struct.pack("<H", 1))
+    buf.write(struct.pack("<H", 1))
+    buf.write(struct.pack("<I", 16000))
+    buf.write(struct.pack("<I", 32000))
+    buf.write(struct.pack("<H", 2))
+    buf.write(struct.pack("<H", 16))
+    buf.write(b"data")
+    buf.write(struct.pack("<I", len(pcm_data)))
+    buf.write(pcm_data)
+    return buf.getvalue()
+
+
+async def call_http_transcription(wav_bytes: bytes) -> tuple[str, str] | tuple[None, None]:
+    """Call the vLLM HTTP transcription endpoint.
+
+    Returns (clean_text, language_code) or (None, None) on failure.
+    """
+    try:
+        wav_b64 = base64.b64encode(wav_bytes).decode("utf-8")
+        client = OpenAI(api_key=settings.api_key, base_url=settings.api_base_url)
+
+        response = client.chat.completions.create(
+            model=settings.model_name,
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "audio_url",
+                            "audio_url": {"url": f"data:audio/wav;base64,{wav_b64}"},
+                        }
+                    ],
+                },
+            ],
+            timeout=min(settings.request_timeout, STREAM_TIMEOUT),
+        )
+
+        raw = response.choices[0].message.content
+        if raw is None:
+            return None, None
+        clean_text, lang = parse_model_output(raw)
+        return clean_text, lang
+    except APITimeoutError:
+        return None, None
+    except APIConnectionError:
+        return None, None
+    except Exception:
+        return None, None
+
+
+async def periodic_transcription(
+    ws: WebSocket,
+    buffer: bytearray,
+    stop_event: asyncio.Event,
+    recording_flag: list[bool],
+    current_task_ref: list[asyncio.Task | None],
+):
+    """Periodically transcribe accumulated audio buffer every ~3 seconds.
+
+    Sends partial results to the frontend WebSocket.
+    Does NOT drain the buffer — re-transcribes full context for continuity.
+    """
+    try:
+        while not stop_event.is_set():
+            if not recording_flag[0]:
+                break
+
+            await asyncio.sleep(PERIODIC_INTERVAL)
+
+            if stop_event.is_set() or not recording_flag[0]:
+                break
+
+            if len(buffer) >= MIN_BUFFER_BYTES:
+                snapshot = bytes(buffer)
+                wav_bytes = pcm16_to_wav_bytes(snapshot)
+
+                # Cancel any in-flight transcription
+                if current_task_ref[0] is not None and not current_task_ref[0].done():
+                    current_task_ref[0].cancel()
+
+                task = asyncio.create_task(call_http_transcription(wav_bytes))
+                current_task_ref[0] = task
+
+                try:
+                    clean_text, lang = await task
+                    if clean_text:
+                        await ws.send_json(
+                            {
+                                "type": "partial",
+                                "text": clean_text,
+                                "language": lang,
+                            }
+                        )
+                    else:
+                        await ws.send_json(
+                            {
+                                "type": "error",
+                                "message": "Transcription returned empty result",
+                            }
+                        )
+                except asyncio.CancelledError:
+                    pass
+                except Exception:
+                    try:
+                        await ws.send_json(
+                            {
+                                "type": "error",
+                                "message": "Transcription failed",
+                            }
+                        )
+                    except Exception:
+                        pass
+
+            await asyncio.sleep(0.1)
+    except asyncio.CancelledError:
+        pass
+    except Exception:
+        pass
+
+
+async def do_final_transcription(
+    ws: WebSocket,
+    buffer: bytearray,
+) -> dict[str, Any] | None:
+    """Do a final transcription of the full buffer and return the result dict."""
+    if not buffer:
+        return None
+
+    wav_bytes = pcm16_to_wav_bytes(bytes(buffer))
+    clean_text, lang = await call_http_transcription(wav_bytes)
+
+    if clean_text:
+        return {
+            "type": "final",
+            "text": clean_text,
+            "language": lang,
+        }
+    return None
 
 
 @router.websocket("/ws/transcribe")
 async def ws_endpoint(websocket: WebSocket):
     await websocket.accept()
 
-    vllm_ws = None
+    await websocket.send_json({"type": "connected"})
+
+    audio_buffer: bytearray = bytearray()
+    is_recording = False
+    stop_event = asyncio.Event()
+    current_task_ref: list[asyncio.Task | None] = [None]
+    recording_flag = [False]
+
+    periodic_task: asyncio.tasks.Task[None] | None = None
+
     try:
-        vllm_ws = await connect_vllm()
-    except Exception as e:
-        logger.error("vLLM connect error: %s (type: %s)", e, type(e).__name__)
-        error_msg = f"Cannot connect to vLLM: {e}"
-        logger.error("Sending error to frontend: %s", error_msg)
-        try:
-            await websocket.send_json(
-                {"type": "error", "message": error_msg}
-            )
-        except Exception as e2:
-            logger.error("Failed to send error to frontend: %s", e2)
-        try:
-            await websocket.close()
-        except Exception:
-            pass
-        return
+        while True:
+            try:
+                raw = await websocket.receive_text()
+                data = json.loads(raw)
+            except WebSocketDisconnect:
+                break
+            except json.JSONDecodeError:
+                continue
 
-    async def frontend_to_vllm(stop: asyncio.Event):
-        try:
-            while not stop.is_set():
-                data = await websocket.receive_json()
-                if data.get("type") not in VALID_TYPES:
+            frame_type = data.get("type")
+            if frame_type not in VALID_TYPES:
+                continue
+
+            if frame_type == "audio":
+                audio_b64 = data.get("data", "")
+                try:
+                    chunk = base64.b64decode(audio_b64)
+                except Exception:
                     continue
-                if data["type"] == "audio":
-                    await vllm_ws.send(
-                        json.dumps(
-                            {
-                                "type": "input_audio_buffer.append",
-                                "audio": data["data"],
-                            }
-                        )
-                    )
-                elif data["type"] == "start":
-                    await vllm_ws.send(
-                        json.dumps(
-                            {"type": "input_audio_buffer.commit", "final": False}
-                        )
-                    )
-                elif data["type"] == "stop":
-                    await vllm_ws.send(
-                        json.dumps(
-                            {"type": "input_audio_buffer.commit", "final": True}
-                        )
-                    )
-        except WebSocketDisconnect:
-            pass
 
-    async def vllm_to_frontend(stop: asyncio.Event):
-        try:
-            while not stop.is_set():
-                msg = await vllm_ws.recv()
-                event = json.loads(msg)
-                etype = event.get("type")
-                if etype == "session.created":
-                    await websocket.send_json({"type": "connected"})
-                elif etype == "transcription.delta":
-                    await websocket.send_json(
-                        {"type": "partial", "text": event.get("delta", "")}
+                # Enforce buffer cap — flush oldest if exceeded
+                if len(audio_buffer) + len(chunk) > MAX_BUFFER_BYTES:
+                    overflow = len(audio_buffer) + len(chunk) - MAX_BUFFER_BYTES
+                    del audio_buffer[:overflow]
+
+                audio_buffer.extend(chunk)
+
+            elif frame_type == "start":
+                if is_recording:
+                    continue
+                is_recording = True
+                recording_flag[0] = True
+                stop_event.clear()
+
+                periodic_task = asyncio.create_task(
+                    periodic_transcription(
+                        websocket, audio_buffer, stop_event, recording_flag, current_task_ref
                     )
-                elif etype == "transcription.done":
+                )
+
+            elif frame_type == "stop":
+                if not is_recording:
+                    continue
+                is_recording = False
+                recording_flag[0] = False
+                stop_event.set()
+
+                # Cancel in-flight transcription
+                if current_task_ref[0] is not None and not current_task_ref[0].done():
+                    current_task_ref[0].cancel()
+
+                # Cancel periodic task
+                if periodic_task is not None and not periodic_task.done():
+                    periodic_task.cancel()
+                    try:
+                        await periodic_task
+                    except asyncio.CancelledError:
+                        pass
+
+                # Final transcription
+                try:
+                    result = await asyncio.wait_for(
+                        do_final_transcription(websocket, audio_buffer),
+                        timeout=min(settings.request_timeout, STREAM_TIMEOUT) + 5,
+                    )
+                    if result:
+                        await websocket.send_json(result)
+                except asyncio.TimeoutError:
                     await websocket.send_json(
                         {
-                            "type": "final",
-                            "text": event.get("text", ""),
-                            "usage": event.get("usage", {}),
+                            "type": "error",
+                            "message": "Final transcription timed out",
                         }
                     )
-                elif etype == "error":
+                except Exception:
                     await websocket.send_json(
-                        {"type": "error", "message": event.get("message", "Unknown error")}
+                        {
+                            "type": "error",
+                            "message": "Final transcription failed",
+                        }
                     )
-        except Exception:
+
+                # Reset state
+                audio_buffer.clear()
+                periodic_task = None
+                current_task_ref[0] = None
+                stop_event.clear()
+
+    except WebSocketDisconnect:
+        pass
+    except Exception:
+        pass
+    finally:
+        # Cleanup
+        recording_flag[0] = False
+        stop_event.set()
+
+        if current_task_ref[0] is not None and not current_task_ref[0].done():
+            current_task_ref[0].cancel()
+
+        if periodic_task is not None and not periodic_task.done():
+            periodic_task.cancel()
+
+        try:
+            if periodic_task is not None:
+                await periodic_task
+        except (asyncio.CancelledError, Exception):
             pass
 
-    stop = asyncio.Event()
-    task_a = None
-    task_b = None
-    try:
-        task_a = asyncio.create_task(frontend_to_vllm(stop))
-        task_b = asyncio.create_task(vllm_to_frontend(stop))
-        await asyncio.gather(task_a, task_b)
-    except (WebSocketDisconnect, asyncio.CancelledError):
-        stop.set()
-        if task_a is not None:
-            task_a.cancel()
-        if task_b is not None:
-            task_b.cancel()
-        if task_a is not None:
-            try:
-                await task_a
-            except (asyncio.CancelledError, Exception):
-                pass
-        if task_b is not None:
-            try:
-                await task_b
-            except (asyncio.CancelledError, Exception):
-                pass
-    finally:
-        if vllm_ws is not None:
-            try:
-                await vllm_ws.close()
-            except Exception:
-                pass
+        try:
+            if current_task_ref[0] is not None:
+                await current_task_ref[0]
+        except (asyncio.CancelledError, Exception):
+            pass
