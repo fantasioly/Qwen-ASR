@@ -1,9 +1,9 @@
 ---
-status: diagnosed
+status: complete
 phase: 05-cache-polish
 source: [05-01-SUMMARY.md, 05-02-SUMMARY.md, 05-03-SUMMARY.md]
 started: '2026-05-06T06:00:00Z'
-updated: '2026-05-06T06:05:00Z'
+updated: '2026-05-06T06:15:00Z'
 ---
 
 ## Current Test
@@ -33,6 +33,7 @@ expected: Start a real-time recording session, speak, and stop. The final result
 result: issue
 reported: "没有显示cache数，是灰色的"—"
 severity: major
+fixed: "05-06-PLAN.md — partialUsage fallback + periodic frame usage propagation"
 
 ### 5. Error Shows Friendly Message with Retry Button
 expected: Trigger a transcription error (e.g., upload invalid file or simulate network error). The ResultCard shows a user-friendly error message (not raw error text) and a Retry button for retryable errors.
@@ -43,6 +44,7 @@ expected: Click the remove/delete button on a job in the file upload panel. The 
 result: issue
 reported: "文件上传后没有remove按钮，只有点击Transcribe ALL后出现Clear Results按钮，且只清除结果，不能单独移除队列中的job"
 severity: major
+fixed: "05-06-PLAN.md — onRemove prop + handleQueueRemove + X button in TranscribeQueue"
 
 ## Summary
 
@@ -56,7 +58,7 @@ blocked: 0
 ## Gaps
 
 - truth: "Real-time panel final result card shows cache tokens in session stats"
-  status: failed
+  status: fixed
   reason: "User reported: 没有显示cache数，是灰色的'——'"
   severity: major
   test: 4
@@ -69,9 +71,11 @@ blocked: 0
   missing:
     - "Include usage in periodic partial frames so stats are available even if final transcription fails"
     - "Fallback stats display when finalUsage is null but partial usage exists"
+  fix_plan: "05-06-PLAN.md"
+  fix_status: "completed"
 
 - truth: "Click remove/delete on a job in the file upload panel removes it from queue and hides its ResultCard"
-  status: failed
+  status: fixed
   reason: "User reported: 文件上传后没有remove按钮，只有点击Transcribe ALL后出现Clear Results按钮，且只清除结果，不能单独移除队列中的job"
   severity: major
   test: 6
@@ -85,3 +89,5 @@ blocked: 0
     - "Add onRemove prop to TranscribeQueue component"
     - "Wire removeJob callback from FileUploadPanel to TranscribeQueue"
     - "Add X/remove button on each queued job row in TranscribeQueue"
+  fix_plan: "05-06-PLAN.md"
+  fix_status: "completed"

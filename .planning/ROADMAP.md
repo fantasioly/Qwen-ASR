@@ -138,4 +138,5 @@
 - [x] 05-01-PLAN.md — Backend cache propagation (transcribe + streaming) + frontend types
 - [x] 05-02-PLAN.md — Cache UI (ResultCard badge + compare) + RealTimePanel cache indicator
 - [x] 05-03-PLAN.md — Error handling polish (errorMap, retry buttons, remove wiring)
+- [x] 05-06-PLAN.md — Gap closure: cache stats fallback + queue remove button
 - [x] 05-06-PLAN.md — Gap closure: real-time cache stats fallback + queued job remove button
