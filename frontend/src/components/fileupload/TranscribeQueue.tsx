@@ -51,9 +51,9 @@ export default function TranscribeQueue({
             key={index}
             className="flex items-center gap-3 py-2 border-b border-gray-100 last:border-0"
           >
-            {/* Filename — truncated */}
+            {/* Filename + size — truncated */}
             <span className="truncate max-w-xs text-sm text-gray-800 flex-shrink-0">
-              {job.file.name}
+              {job.file.name} ({(job.file.size / 1024).toFixed(0)}KB)
             </span>
 
             {/* Progress bar */}

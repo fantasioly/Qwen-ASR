@@ -69,5 +69,4 @@ export interface TranscribeJob {
 export interface TranscribeQueueState {
   jobs: TranscribeJob[]
   isProcessing: boolean
-  currentJobIndex: number | null
 }

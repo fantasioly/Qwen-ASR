@@ -2,9 +2,12 @@
 
 import asyncio
 import json
+import logging
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from websockets.legacy.client import connect as ws_connect
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 VALID_TYPES = {"audio", "start", "stop"}
 
@@ -19,10 +22,13 @@ async def connect_vllm():
         .replace("https://", "wss://")
         .replace("/v1", "/v1/realtime")
     )
+    logger.info("Connecting to vLLM WS: %s", ws_uri)
     vllm_ws = await ws_connect(ws_uri, extra_headers={"Authorization": f"Bearer {settings.api_key}"})
+    logger.info("vLLM WS connected, sending session.update")
     await vllm_ws.send(
         json.dumps({"type": "session.update", "model": settings.model_name})
     )
+    logger.info("session.update sent, waiting for vLLM response")
     return vllm_ws
 
 
@@ -34,12 +40,15 @@ async def ws_endpoint(websocket: WebSocket):
     try:
         vllm_ws = await connect_vllm()
     except Exception as e:
+        logger.error("vLLM connect error: %s (type: %s)", e, type(e).__name__)
+        error_msg = f"Cannot connect to vLLM: {e}"
+        logger.error("Sending error to frontend: %s", error_msg)
         try:
             await websocket.send_json(
-                {"type": "error", "message": f"Cannot connect to vLLM: {e}"}
+                {"type": "error", "message": error_msg}
             )
-        except Exception:
-            pass
+        except Exception as e2:
+            logger.error("Failed to send error to frontend: %s", e2)
         try:
             await websocket.close()
         except Exception:

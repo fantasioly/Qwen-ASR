@@ -2,13 +2,77 @@ from fastapi import APIRouter, UploadFile, File
 from fastapi.responses import JSONResponse
 from openai import OpenAI, APIConnectionError, APITimeoutError
 import base64
+import re
 import time
 from app.config import settings
 from app.errors import structured_error
 
 router = APIRouter()
 
-SYSTEM_PROMPT = "You are a speech recognition assistant. Transcribe the audio content accurately."
+SYSTEM_PROMPT = (
+    "You are a speech recognition assistant. "
+    "First detect the spoken language. "
+    "Output in this exact format:\n"
+    "<language>XX</language>\n"
+    "<asr_text>transcription here</asr_text>"
+)
+
+LANGUAGE_MAP = {
+    "english": "en", "chinese": "zh", "mandarin": "zh",
+    "japanese": "ja", "korean": "ko",
+    "french": "fr", "german": "de", "spanish": "es",
+    "portuguese": "pt", "russian": "ru", "arabic": "ar",
+    "indonesian": "id", "italian": "it", "turkish": "tr",
+    "polish": "pl", "vietnamese": "vi", "thai": "th",
+    "dutch": "nl", "czech": "cs", "romanian": "ro",
+    "hindi": "hi", "ukrainian": "uk", "swedish": "sv",
+    "hungarian": "hu", "danske": "da", "danish": "da",
+    "finnish": "fi", "norwegian": "no",
+    "hebrew": "iw", "malay": "ms",
+}
+
+
+def _resolve_language(raw_lang: str) -> str:
+    """Map a natural language name to a 2-letter ISO code."""
+    name = raw_lang.lower().strip()
+    if name in LANGUAGE_MAP:
+        return LANGUAGE_MAP[name]
+    if len(name) == 2:
+        return name
+    return raw_lang
+
+
+def parse_model_output(raw: str) -> tuple[str, str]:
+    """Parse Qwen3-ASR model output, extracting language and transcription.
+
+    Handles three formats:
+    1. Structured tags: <language>XX</language><asr_text>...</asr_text>
+    2. Natural prefix: "language English<asr_text>..." or "language 中文\n..."
+    3. Fallback: entire text as transcription, language = "unknown"
+
+    Returns: (clean_text, language_code)
+    """
+    # Strategy 1: <language>XX</language><asr_text>...</asr_text>
+    m = re.search(r"<language>\s*(.+?)\s*</language>", raw)
+    t = re.search(r"<asr_text>(.+?)</asr_text>", raw)
+    if m and t:
+        raw_lang = m.group(1).strip().lower()
+        clean_text = t.group(1).strip()
+        lang_code = _resolve_language(raw_lang)
+        return clean_text, lang_code
+
+    # Strategy 2: "language XX<asr_text>..." or "language XX\n..."
+    m = re.match(r"(?:language|\u8bed\u8a00)\s+(\S+?)(?:\s*<asr_text>|[\n:])", raw, re.IGNORECASE)
+    if m:
+        raw_lang = m.group(1).strip().rstrip(":")
+        tail = raw[m.end():]
+        clean_text = re.sub(r"^<asr_text>\s*", "", tail).strip()
+        clean_text = re.sub(r"</asr_text>\s*$", "", clean_text).strip()
+        lang_code = _resolve_language(raw_lang)
+        return clean_text, lang_code
+
+    # Strategy 3: fallback
+    return raw.strip(), "unknown"
 
 
 @router.post("/api/transcribe")
@@ -40,12 +104,13 @@ async def transcribe(file: UploadFile = File(...)):
         )
 
         processing_time_ms = (time.time() - start_time) * 1000
-        result_text = response.choices[0].message.content
+        raw_output = response.choices[0].message.content
+        result_text, detected_language = parse_model_output(raw_output)
 
         return JSONResponse(
             content={
                 "text": result_text,
-                "language": "unknown",
+                "language": detected_language,
                 "usage": {
                     "prompt_tokens": (
                         response.usage.prompt_tokens if response.usage else 0

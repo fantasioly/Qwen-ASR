@@ -144,7 +144,6 @@ describe('useTranscribeQueue', () => {
 
       expect(result.current).toHaveProperty('jobs')
       expect(result.current).toHaveProperty('isProcessing')
-      expect(result.current).toHaveProperty('currentJobIndex')
       expect(result.current).toHaveProperty('enqueue')
       expect(result.current).toHaveProperty('removeJob')
       expect(result.current).toHaveProperty('processQueue')
@@ -156,7 +155,6 @@ describe('useTranscribeQueue', () => {
 
       expect(result.current.jobs).toEqual([])
       expect(result.current.isProcessing).toBe(false)
-      expect(result.current.currentJobIndex).toBeNull()
     })
   })
 
@@ -231,7 +229,6 @@ describe('useTranscribeQueue', () => {
       })
 
       expect(result.current.isProcessing).toBe(false)
-      expect(result.current.currentJobIndex).toBeNull()
     })
 
     it('handles job failure gracefully', async () => {

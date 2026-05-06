@@ -38,7 +38,6 @@ export default function FileUploadPanel() {
         toast.success(
           `Added ${enqueued} file${enqueued > 1 ? 's' : ''} to queue`,
         )
-        processQueue()
       }
     },
     [enqueue, processQueue],

@@ -5,52 +5,29 @@ import {
 } from '@/types/transcribe'
 import { validateFile, uploadAudio } from '@/api/transcribe'
 
-/**
- * Return type of the useTranscribeQueue hook.
- */
 export interface UseTranscribeQueueReturn {
   jobs: TranscribeJob[]
   isProcessing: boolean
-  currentJobIndex: number | null
   enqueue: (file: File) => { success: true } | { success: false; reason: string }
   removeJob: (index: number) => void
   processQueue: () => Promise<void>
   clearCompleted: () => void
 }
 
-/**
- * Custom hook for managing a FIFO transcription queue.
- *
- * Files are processed sequentially (not in parallel) — one at a time
- * via for-await loop. Each file transitions through status states:
- * queued → uploading → processing → complete/failed.
- *
- * Per D-02: supports multi-file selection.
- * Per D-03: sequential queue processing.
- * Per D-05: per-file progress reporting.
- */
 export function useTranscribeQueue(): UseTranscribeQueueReturn {
   const [jobs, setJobs] = useState<TranscribeJob[]>([])
   const [isProcessing, setIsProcessing] = useState(false)
-  const [currentJobIndex, setCurrentJobIndex] = useState<number | null>(null)
 
   const abortControllerRef = useRef<AbortController | null>(null)
+  const processingRef = useRef(false)
+  const jobsRef = useRef<TranscribeJob[]>([])
 
-  // Cleanup on unmount: abort any in-flight upload
   useEffect(() => {
     return () => {
       abortControllerRef.current?.abort()
     }
   }, [])
 
-  /**
-   * Add a file to the transcription queue.
-   * Validates the file before enqueuing — rejects unsupported formats
-   * and oversized files with specific reasons.
-   *
-   * @param file - The audio file to queue
-   * @returns Validation result with reason if rejected
-   */
   const enqueue = useCallback(
     (file: File): { success: true } | { success: false; reason: string } => {
       const validation = validateFile(file)
@@ -62,132 +39,94 @@ export function useTranscribeQueue(): UseTranscribeQueueReturn {
         status: 'queued',
         progress: 0,
       }
-      setJobs((prev) => [...prev, newJob])
+      jobsRef.current = [...jobsRef.current, newJob]
+      setJobs([...jobsRef.current])
       return { success: true }
     },
     [],
   )
 
-  /**
-   * Remove a job from the queue by index.
-   * Only removes queued jobs (not currently processing).
-   */
   const removeJob = useCallback((index: number) => {
-    setJobs((prev) => prev.filter((_, i) => i !== index))
+    jobsRef.current = jobsRef.current.filter((_, i) => i !== index)
+    setJobs([...jobsRef.current])
   }, [])
 
-  /**
-   * Clear all completed and failed jobs from the queue.
-   * Preserves jobs that are still queued or uploading.
-   */
   const clearCompleted = useCallback(() => {
-    setJobs((prev) =>
-      prev.filter(
-        (job) => job.status !== 'complete' && job.status !== 'failed',
-      ),
+    jobsRef.current = jobsRef.current.filter(
+      (job) => job.status !== 'complete' && job.status !== 'failed',
     )
+    setJobs([...jobsRef.current])
   }, [])
 
   /**
-   * Process all queued jobs sequentially (FIFO).
-   *
-   * Each job transitions through:
-   * queued → uploading (XHR started, progress updates)
-   * → processing (upload done, awaiting API response)
-   * → complete or failed
-   *
-   * Uses AbortController for cancellation on unmount.
+   * Update both ref and state atomically for a single file.
    */
+  const updateJob = (
+    file: File,
+    updater: (job: TranscribeJob) => TranscribeJob,
+  ) => {
+    jobsRef.current = jobsRef.current.map((j) =>
+      j.file === file ? updater(j) : j,
+    )
+    setJobs([...jobsRef.current])
+  }
+
   const processQueue = useCallback(async () => {
-    if (isProcessing) return
+    if (processingRef.current) return
 
     const controller = new AbortController()
     abortControllerRef.current = controller
-
+    processingRef.current = true
     setIsProcessing(true)
 
-    // Use a mutable copy for iteration (stable indices since enqueue is blocked)
-    let currentJobs = [...jobs]
+    const pendingFiles = jobsRef.current
+      .filter((j) => j.status !== 'complete' && j.status !== 'failed')
+      .map((j) => j.file)
 
-    for (let i = 0; i < currentJobs.length; i++) {
+    for (const file of pendingFiles) {
       if (controller.signal.aborted) break
 
-      setCurrentJobIndex(i)
-
-      // Mark as uploading
-      setJobs((prev) =>
-        prev.map((job, idx) =>
-          idx === i ? { ...job, status: 'uploading' as const, progress: 0 } : job,
-        ),
-      )
+      updateJob(file, (j) => ({ ...j, status: 'uploading' as const, progress: 0 }))
 
       try {
         const result = await new Promise<NonNullable<TranscribeJob['result']>>(
           (resolve, reject) => {
             const onProgress = (percent: number) => {
-              setJobs((prev) =>
-                prev.map((job, idx) =>
-                  idx === i ? { ...job, progress: percent } : job,
-                ),
-              )
+              updateJob(file, (j) => ({ ...j, progress: percent }))
             }
 
-            const { promise } = uploadAudio(
-              currentJobs[i].file,
-              onProgress,
-              controller.signal,
-            )
-
+            const { promise } = uploadAudio(file, onProgress, controller.signal)
             promise.then(resolve).catch(reject)
           },
         )
 
-        // Mark as processing (upload done, got response)
-        setJobs((prev) =>
-          prev.map((job, idx) =>
-            idx === i
-              ? { ...job, status: 'processing' as const, progress: 100 }
-              : job,
-          ),
-        )
-
-        // Mark as complete
-        setJobs((prev) =>
-          prev.map((job, idx) =>
-            idx === i
-              ? { ...job, status: 'complete' as const, result }
-              : job,
-          ),
-        )
+        updateJob(file, (j) => ({
+          ...j,
+          status: 'complete' as const,
+          progress: 100,
+          result,
+        }))
       } catch (err: unknown) {
-        // Ignore abort errors
         if (controller.signal.aborted) break
 
         const error: TranscribeError = err as TranscribeError
-        setJobs((prev) =>
-          prev.map((job, idx) =>
-            idx === i
-              ? {
-                  ...job,
-                  status: 'failed' as const,
-                  error,
-                  progress: job.progress,
-                }
-              : job,
-          ),
-        )
+        updateJob(file, (j) => ({
+          ...j,
+          status: 'failed' as const,
+          error,
+          progress: j.progress,
+        }))
       }
     }
 
+    processingRef.current = false
     setIsProcessing(false)
-    setCurrentJobIndex(null)
     abortControllerRef.current = null
-  }, [jobs, isProcessing])
+  }, [])
 
   return {
     jobs,
     isProcessing,
-    currentJobIndex,
     enqueue,
     removeJob,
     processQueue,

@@ -1,9 +1,9 @@
 ---
-status: diagnosed
+status: complete
 phase: 03-file-upload-transcription
 source: [03-01-SUMMARY.md, 03-02-SUMMARY.md, 03-03-SUMMARY.md]
-started: "2026-05-05T06:15:00Z"
-updated: "2026-05-05T06:30:00Z"
+started: "2026-05-05T16:50:00Z"
+updated: "2026-05-05T17:35:00Z"
 ---
 
 ## Current Test
@@ -34,15 +34,11 @@ result: pass
 
 ### 6. Upload Progress Display
 expected: During upload, progress bar shows percentage and animates upward. Status label shows "Uploading" then "Processing" then "Complete" with green color.
-result: issue
-reported: "上传完成后没有显示绿色，QUEUE下面自左向右显示的是文件名，一个灰色的空进度条，Waiting..."
-severity: major
+result: pass
 
 ### 7. Transcription Result Display
 expected: After processing, result card shows the transcribed text and detected language labeled correctly (e.g., "Chinese", "English").
-result: issue
-reported: "文件名后显示unknown，语言检测文本嵌入转译结果中如language English<asr_text>中文内容，且中文音频被检测为英文"
-severity: major
+result: pass
 
 ### 8. Copy Transcription to Clipboard
 expected: Click the copy button on a result card. Copy icon changes and toast confirmation appears.
@@ -59,53 +55,26 @@ result: pass
 ## Summary
 
 total: 10
-passed: 8
-issues: 2
+passed: 10
+issues: 0
 pending: 0
 skipped: 0
 blocked: 0
 
-## Gaps
+## Issues Fixed During Retest
 
-- truth: "Upload shows progress bar and processing status (uploading → processing → complete)"
-  status: failed
-  reason: "User reported: 上传完成后没有显示绿色，QUEUE下面自左向右显示的是文件名，一个灰色的空进度条，Waiting..."
-  severity: major
-  test: 6
-  root_cause: "processQueue() closure captures stale jobs array (empty). enqueue() calls setJobs() which queues a React state update. processQueue() runs synchronously before React applies the update, so currentJobs = [...jobs] is empty → files never process. (useTranscribeQueue.ts:110)"
-  artifacts:
-    - path: "frontend/src/components/fileupload/FileUploadPanel.tsx"
-      issue: "handleFiles calls processQueue() synchronously after enqueue, but processQueue closure has stale jobs"
-    - path: "frontend/src/hooks/useTranscribeQueue.ts"
-      issue: "processQueue closure captures jobs:110 which may be stale"
-  missing:
-    - "Pass file list directly to processQueue or use ref for latest jobs"
-  debug_session: ".planning/debug/processQueue-stale-jobs.md"
+### Test 3: File size not displayed in queue
+- **Root cause:** `TranscribeQueue.tsx` only rendered `job.file.name`
+- **Fix:** Added `({(job.file.size / 1024).toFixed(0)}KB)` next to filename
 
-- truth: "Result displays transcription text and detected language label"
-  status: failed
-  reason: "User reported: 文件名后显示unknown，语言检测文本嵌入转译结果中如language English<asr_text>中文内容，且中文音频被检测为英文"
-  severity: major
-  test: 7
-  root_cause: "transcribe.py:48 hardcodes language to 'unknown'. No system prompt instructs model to output structured language detection, so model prepends 'language XX\\n<asr_text>...' to transcription text."
-  artifacts:
-    - path: "backend/app/routers/transcribe.py"
-      issue: "line 48 hardcodes language='unknown', no language parsing from model output"
-    - path: "frontend/src/components/fileupload/ResultCard.tsx"
-      issue: "displays raw job.result.language which is always 'unknown'"
-  missing:
-    - "Parse language from model response or use Whisper-like structured output"
-    - "Update SYSTEM_PROMPT to instruct model format: {language, text}"
-  debug_session: ".planning/debug/language-detection-missing.md"
+### Test 6: Upload progress stuck (stale closure + duplicate processing)
+- **Root cause:** Original `processQueue` closure captured stale `jobs` array; React state not immediately available after `enqueue`
+- **Fix:** Replaced closure-based `jobs` with `jobsRef` (synchronous ref updated atomically with state). Added `processingRef` guard to prevent duplicate runs.
 
-## Issues Found
+### Test 10: Files re-processed on subsequent uploads
+- **Root cause:** `processQueue` processed ALL jobs in ref, including already-finished ones
+- **Fix:** `pendingFiles` filters out `complete`/`failed` jobs before loop. All status transitions update both `jobsRef` and React state atomically.
 
-### Test 6: Progress Stuck After Upload
-**Description:** 上传完成后没有显示绿色，QUEUE下面自左向右显示的是文件名，一个灰色的空进度条，Waiting...
-**Severity:** major
-**Expected:** Progress bar turns green on completion, status shows "Complete"
-
-### Test 7: Language Detection Issues
-**Description:** 文件名后显示unknown，语言检测文本嵌入转译结果中如language English<asr_text>中文内容，且中文音频被检测为英文
-**Severity:** major
-**Expected:** Language label shows detected language (not "unknown"), language detection text separated from transcription
+### UX Fix: Auto-transcribe on file drop
+- **Issue:** `FileUploadPanel.handleFiles` called `processQueue()` automatically after enqueue
+- **Fix:** Removed auto-call — files stay in queue until user clicks "Transcribe All"
