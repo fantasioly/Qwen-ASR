@@ -19,9 +19,25 @@ export default function FileUploadPanel() {
     jobs,
     isProcessing,
     enqueue,
+    removeJob,
     processQueue,
     clearCompleted,
   } = useTranscribeQueue()
+
+  const handleRetry = useCallback(
+    (jobIndex: number) => {
+      const job = jobs[jobIndex]
+      if (!job || job.status !== 'failed') return
+      // Re-enqueue the same file - will process next time processQueue runs
+      const result = enqueue(job.file)
+      if (result.success) {
+        toast.success('Re-queued for transcription')
+      } else {
+        toast.error(result.reason)
+      }
+    },
+    [jobs, enqueue],
+  )
 
   const handleFiles = useCallback(
     (files: File[]) => {
@@ -111,9 +127,8 @@ export default function FileUploadPanel() {
                   key={`${job.file.name}-${originalIndex}`}
                   job={job}
                   index={originalIndex}
-                  onRemove={() => {
-                    // Removed via clearCompleted button
-                  }}
+                  onRemove={() => removeJob(originalIndex)}
+                  onRetry={handleRetry}
                 />
               )
             })}
